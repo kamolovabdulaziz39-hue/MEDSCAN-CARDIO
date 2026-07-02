@@ -789,6 +789,18 @@ def admin_update_user(
     db.commit()
     return {"status": "success", "message": "Foydalanuvchi ma'lumotlari yangilandi"}
 
+# Custom endpoint to force APK download with correct MIME type and Content-Disposition header
+@app.get("/static/medscan-cardio.apk")
+def download_apk():
+    apk_path = "static/medscan-cardio.apk"
+    if not os.path.exists(apk_path):
+        raise HTTPException(status_code=404, detail="APK fayli topilmadi")
+    return FileResponse(
+        apk_path,
+        media_type="application/vnd.android.package-archive",
+        filename="medscan-cardio.apk"
+    )
+
 # Mount uploads folder
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
