@@ -1,0 +1,20 @@
+# Python cache & virtualenvs
+__pycache__/
+*.pyc
+venv/
+.venv/
+*.log
+
+# Databases & backups
+*.db
+backups/
+
+# Android build artifacts and IDE files
+.gradle/
+build/
+app/build/
+local.properties
+.idea/
+*.iml
+.DS_Store
+tmp_build_tools/

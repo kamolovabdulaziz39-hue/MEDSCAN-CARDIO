@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MEDSCAN CARDIO – Tezkor EKG Diagnosis</title>
+    <meta name="description" content="MEDSCAN CARDIO - Sun'iy intellekt asosida EKG tahlili va kardiologik diagnostika tizimi">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+</head>
+<body>
+    <!-- LOGIN SCREEN -->
+    <div id="login-screen" class="screen-container active">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="pulse-logo"><i class="fa-solid fa-heart-pulse"></i></div>
+                <h2>MEDSCAN CARDIO</h2>
+                <p>Tezkor EKG Tahlili va Diagnostika Tizimi</p>
+            </div>
+            <div class="auth-toggle">
+                <span id="toggle-to-login" class="toggle-link active-toggle">Tizimga Kirish</span>
+                <span class="toggle-sep">|</span>
+                <span id="toggle-to-register" class="toggle-link">Ro'yxatdan o'tish</span>
+            </div>
+            <!-- Login Form -->
+            <form id="login-form" class="auth-form">
+                <div class="input-group">
+                    <label for="login-phone"><i class="fa-solid fa-phone"></i> Telefon raqam</label>
+                    <input type="text" id="login-phone" placeholder="+998 (90) 123-45-67" required value="+998945651539">
+                </div>
+                <div class="input-group">
+                    <label for="login-passcode"><i class="fa-solid fa-lock"></i> TTB paroli</label>
+                    <input type="password" id="login-passcode" placeholder="••••" maxlength="32" required value="288019701966200120042026">
+                </div>
+                <div id="login-error" class="error-msg hide"></div>
+                <button type="submit" class="btn btn-primary btn-block">Tizimga Kirish <i class="fa-solid fa-arrow-right-to-bracket"></i></button>
+            </form>
+            <!-- Register Form -->
+            <form id="register-form" class="auth-form hide">
+                <div class="input-group"><label><i class="fa-solid fa-user"></i> Ism</label><input type="text" id="register-first-name" placeholder="Ismingiz" required></div>
+                <div class="input-group"><label><i class="fa-solid fa-user"></i> Familiya</label><input type="text" id="register-last-name" placeholder="Familiyangiz" required></div>
+                <div class="input-group"><label><i class="fa-solid fa-phone"></i> Telefon raqam</label><input type="text" id="register-phone" placeholder="+998901234567" required></div>
+                <div class="input-group"><label><i class="fa-solid fa-lock"></i> Parol</label><input type="password" id="register-passcode" placeholder="••••" maxlength="32" required></div>
+                <div class="input-group">
+                    <label for="register-region"><i class="fa-solid fa-map-location-dot"></i> Viloyat / Shahar</label>
+                    <select id="register-region" required>
+                        <option value="">Viloyat / Shaharni tanlang...</option>
+                        <option value="Toshkent shahri">Toshkent shahri</option>
+                        <option value="Toshkent viloyati">Toshkent viloyati</option>
+                        <option value="Andijon viloyati">Andijon viloyati</option>
+                        <option value="Buxoro viloyati">Buxoro viloyati</option>
+                        <option value="Farg'ona viloyati">Farg'ona viloyati</option>
+                        <option value="Jizzax viloyati">Jizzax viloyati</option>
+                        <option value="Namangan viloyati">Namangan viloyati</option>
+                        <option value="Navoiy viloyati">Navoiy viloyati</option>
+                        <option value="Qashqadaryo viloyati">Qashqadaryo viloyati</option>
+                        <option value="Qoraqalpog'iston Respublikasi">Qoraqalpog'iston Respublikasi</option>
+                        <option value="Samarqand viloyati">Samarqand viloyati</option>
+                        <option value="Sirdaryo viloyati">Sirdaryo viloyati</option>
+                        <option value="Surxondaryo viloyati">Surxondaryo viloyati</option>
+                        <option value="Xorazm viloyati">Xorazm viloyati</option>
+                    </select>
+                </div>
+                <div class="input-group" id="register-district-group">
+                    <label for="register-district"><i class="fa-solid fa-location-crosshairs"></i> Tuman / Shahar</label>
+                    <select id="register-district" required disabled>
+                        <option value="">Avval viloyatni tanlang...</option>
+                    </select>
+                </div>
+                <div class="input-group" id="register-village-group">
+                    <label for="register-village"><i class="fa-solid fa-house-chimney"></i> Mahalla / Qishloq</label>
+                    <input type="text" id="register-village" placeholder="Mahalla yoki qishloq nomi" required disabled>
+                </div>
+                <div class="input-group" id="register-street-group" style="position: relative;">
+                    <label for="register-street"><i class="fa-solid fa-road"></i> Ko'cha</label>
+                    <input type="text" id="register-street" placeholder="Ko'cha nomini yozing..." required disabled autocomplete="off">
+                    <div id="register-street-suggestions" class="suggestions-list hide"></div>
+                </div>
+                <div class="input-group birthdate-group"><label><i class="fa-solid fa-calendar-days"></i> Tug'ilgan sana</label>
+                    <div class="birthdate-selects"><select id="register-birth-year"></select><select id="register-birth-month"></select><select id="register-birth-day"></select></div>
+                </div>
+                <div id="register-error" class="error-msg hide"></div>
+                <button type="submit" class="btn btn-primary btn-block">Ro'yxatdan o'tish <i class="fa-solid fa-user-plus"></i></button>
+            </form>
+            <div style="margin: 20px 0; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 15px; display: flex; flex-direction: column; gap: 10px;">
+                <button id="public-stats-btn" class="btn btn-secondary btn-block" style="border: 1px solid var(--neon-cyan); box-shadow: var(--shadow-cyan);"><i class="fa-solid fa-chart-simple"></i> Respublika Ochiq Statistikasi</button>
+                <a href="/static/medscan-cardio.apk" class="btn btn-secondary btn-block" style="border: 1px solid var(--neon-green); box-shadow: var(--shadow-green); text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none;" download>
+                    <i class="fa-brands fa-android" style="color: var(--neon-green); font-size: 1.1rem;"></i> Android Ilovani Yuklash (APK)
+                </a>
+            </div>
+            <div class="login-footer"><p>&copy; 2026 MEDSCAN CARDIO. Barcha huquqlar himoyalangan.</p></div>
+        </div>
+    </div>
+
+    <!-- MAIN APP SHELL -->
+    <div id="app-shell" class="app-container hide">
+        <aside class="sidebar">
+            <div class="sidebar-header"><i class="fa-solid fa-heart-pulse logo-icon"></i><span class="logo-text">MEDSCAN CARDIO</span></div>
+            <div class="user-profile"><div class="avatar"><i class="fa-solid fa-user-md"></i></div><div class="user-info"><h4 id="user-phone"></h4><p id="user-region"></p></div></div>
+            <nav class="nav-menu">
+                <a href="#" class="nav-item active" data-target="home-view"><i class="fa-solid fa-house"></i><span>Asosiy Oyna</span></a>
+                <a href="#" class="nav-item hide" id="nav-new-patient" data-target="new-patient-view"><i class="fa-solid fa-user-plus"></i><span>Yangi Bemor</span></a>
+                <a href="#" class="nav-item" data-target="dashboard-view"><i class="fa-solid fa-chart-line"></i><span>O'zbekiston Respublikasi Kardiologik Monitoring Portali</span></a>
+                <a href="#" class="nav-item hide" id="nav-profile" data-target="profile-view"><i class="fa-solid fa-id-card"></i><span>Profil</span></a>
+                <a href="#" class="nav-item hide" id="nav-admin" data-target="admin-view"><i class="fa-solid fa-user-shield"></i><span>Admin Panel</span></a>
+                <a href="#" class="nav-item hide" id="install-app-btn"><i class="fa-solid fa-download"></i><span>Ilovani o'rnatish</span></a>
+                <a href="/static/medscan-cardio.apk" class="nav-item" download><i class="fa-brands fa-android" style="color: var(--neon-green);"></i><span>Android APK yuklash</span></a>
+            </nav>
+            <div class="sidebar-footer"><button id="logout-btn" class="btn btn-logout"><i class="fa-solid fa-arrow-right-from-bracket"></i><span>Chiqish</span></button></div>
+        </aside>
+
+        <main class="main-content">
+            <header class="content-header">
+                <div class="header-left"><button class="mobile-toggle-btn"><i class="fa-solid fa-bars"></i></button><h2 id="page-title">Asosiy Oyna</h2></div>
+                <div class="header-right"><span class="system-status"><span class="status-indicator online"></span> Tizim faol</span></div>
+            </header>
+
+            <!-- HOME VIEW -->
+            <div id="home-view" class="app-view active">
+                <div class="dashboard-header-card"><div class="card-body">
+                    <div id="project-info-container" class="project-info-card">
+                        <h3><i class="fa-solid fa-heart-pulse" style="color:var(--neon-blue)"></i> MEDSCAN CARDIO – Tezkor Kardiologik Tahlillar</h3>
+                        <p>Bu tizim sun'iy intellekt va yetakchi kardiologlar tajribasi asosida EKG rasmlaridan infarkt, ishemiya va aritmiyani 15 soniya ichida aniqlaydi.</p>
+                        <p><strong>Asosiy imkoniyatlar:</strong></p>
+                        <ul class="project-features-grid">
+                            <li class="feature-item"><i class="fa-solid fa-brain feature-icon"></i> AI &amp; Kompyuter Ko'rish</li>
+                            <li class="feature-item"><i class="fa-solid fa-stopwatch feature-icon"></i> 15 soniyalik natija</li>
+                            <li class="feature-item"><i class="fa-solid fa-truck-medical feature-icon"></i> 103-reanimatsiya xabarnomasi</li>
+                            <li class="feature-item"><i class="fa-solid fa-file-pdf feature-icon"></i> Bilingual PDF bayonnomalar</li>
+                        </ul>
+                        <button id="acknowledge-project" class="btn btn-primary" style="margin-top:20px">Tushunarli, foydalanishni boshlash <i class="fa-solid fa-arrow-right"></i></button>
+                    </div>
+                    <div id="new-patient-start-container" class="hide">
+                        <h3>Tezkor kardiologik tahlillar markaziga xush kelibsiz!</h3>
+                        <p>Ushbu tizim sun'iy intellekt va yetakchi kardiologlar tajribasi asosida EKG rasmlaridan infarkt, ishemiya va aritmiyani 15 soniya ichida aniqlaydi.</p>
+                        <button class="btn btn-primary" onclick="switchView('new-patient-view')"><i class="fa-solid fa-plus"></i> Yangi bemor tekshiruvi</button>
+                    </div>
+                </div></div>
+                <div id="mobile-install-banner" class="mobile-install-banner hide"><p><i class="fa-solid fa-mobile-screen-button"></i> Ilovani telefoningizga o'rnating!</p><button id="mobile-install-btn" class="btn btn-primary btn-sm">O'rnatish</button></div>
+                <div class="recent-patients-card">
+                    <h3><i class="fa-solid fa-clock-rotate-left"></i> So'nggi tekshiruvlar</h3>
+                    <div class="table-filters" style="display:flex;gap:12px;margin-bottom:16px">
+                        <input type="text" id="patient-search" placeholder="Bemor ismi yoki ID bo'yicha qidirish..." style="flex:1;background:rgba(255,255,255,0.05);border:1px solid var(--border-color);border-radius:10px;padding:10px 14px;color:#fff;font-size:0.9rem">
+                        <select id="diagnosis-filter" style="background:rgba(255,255,255,0.05);border:1px solid var(--border-color);border-radius:10px;padding:10px 14px;color:#fff;font-size:0.9rem">
+                            <option value="ALL">Barcha tashxislar</option>
+                            <option value="NORMAL">Normal</option>
+                            <option value="ISCHEMIA">Ishemiya</option>
+                            <option value="ARRHYTHMIA">Aritmiya</option>
+                            <option value="ACUTE_INFARCTION">O'tkir Infarkt</option>
+                        </select>
+                    </div>
+                    <div class="table-responsive"><table class="data-table"><thead><tr><th>Cardio-ID</th><th>Bemor</th><th>Tug'. yili</th><th>Sana</th><th>Tashxis</th><th>Amal</th></tr></thead><tbody id="patients-table-body"><tr><td colspan="6" style="text-align:center">Yuklanmoqda...</td></tr></tbody></table></div>
+                </div>
+            </div>
+
+            <!-- PROFILE VIEW -->
+            <div id="profile-view" class="app-view hide">
+                <div class="dashboard-header-card"><div class="card-body">
+                    <h3><i class="fa-solid fa-id-card" style="color:var(--neon-blue)"></i> Mening Profilim</h3>
+                    <div class="profile-details">
+                        <p><strong>Ism:</strong> <span id="profile-first-name"></span></p>
+                        <p><strong>Familiya:</strong> <span id="profile-last-name"></span></p>
+                        <p><strong>Telefon:</strong> <span id="profile-phone"></span></p>
+                        <p><strong>Hudud:</strong> <span id="profile-region"></span></p>
+                        <p><strong>Tug'ilgan sana:</strong> <span id="profile-birthdate"></span></p>
+                    </div>
+                </div></div>
+            </div>
+
+            <!-- NEW PATIENT VIEW -->
+            <div id="new-patient-view" class="app-view hide">
+                <form id="new-patient-form">
+                    <div class="wizard-steps">
+                        <div class="step active" data-step="1"><span class="step-number">1</span><span class="step-label">Bemor</span></div>
+                        <div class="step" data-step="2"><span class="step-number">2</span><span class="step-label">Klinik</span></div>
+                        <div class="step" data-step="3"><span class="step-number">3</span><span class="step-label">EKG</span></div>
+                    </div>
+                    <!-- Step 1 -->
+                    <div id="step-content-1" class="wizard-step-content active">
+                        <div class="form-card"><div class="card-body">
+                            <h3><i class="fa-solid fa-user-pen"></i> Bemor ma'lumotlari</h3>
+                            <div class="form-grid">
+                                <div class="input-group"><label>Familiya</label><input type="text" id="pat-lastname" placeholder="Karimov" required></div>
+                                <div class="input-group"><label>Ism</label><input type="text" id="pat-firstname" placeholder="Sardor" required></div>
+                                <div class="input-group"><label>Tug'ilgan yil</label><input type="number" id="pat-birthyear" placeholder="1985" min="1920" max="2010" required></div>
+                                <div class="input-group"><label>Jinsi</label><div class="radio-group"><label class="radio-label"><input type="radio" name="pat-gender" value="Erkak" checked> Erkak</label><label class="radio-label"><input type="radio" name="pat-gender" value="Ayol"> Ayol</label></div></div>
+                                <div class="input-group"><label>Telefon</label><input type="text" id="pat-phone" placeholder="+998901234567" required></div>
+                            </div>
+                            <button type="button" class="btn btn-primary next-step-btn" data-next="2">Keyingisi <i class="fa-solid fa-arrow-right"></i></button>
+                        </div></div>
+                    </div>
+                    <!-- Step 2 -->
+                    <div id="step-content-2" class="wizard-step-content hide">
+                        <div class="form-card"><div class="card-body">
+                            <h3><i class="fa-solid fa-stethoscope"></i> Klinik ko'rsatkichlar</h3>
+                            <div class="symptoms-grid">
+                                <label class="symptom-checkbox"><input type="checkbox" name="symptom" value="ko'krak qafasidagi og'riq"> Ko'krak og'rig'i</label>
+                                <label class="symptom-checkbox"><input type="checkbox" name="symptom" value="chap qo'lga og'riq berishi"> Chap qo'l og'rig'i</label>
+                                <label class="symptom-checkbox"><input type="checkbox" name="symptom" value="nafas qisilishi"> Nafas qisilishi</label>
+                                <label class="symptom-checkbox"><input type="checkbox" name="symptom" value="sovuq ter bosishi"> Sovuq ter</label>
+                            </div>
+                            <div class="form-grid">
+                                <div class="input-group"><label>Sistolik (mmHg)</label><input type="number" id="vitals-sys" placeholder="120" required></div>
+                                <div class="input-group"><label>Diastolik (mmHg)</label><input type="number" id="vitals-dia" placeholder="80" required></div>
+                                <div class="input-group"><label>Puls (bpm)</label><input type="number" id="vitals-pulse" placeholder="72" required></div>
+                            </div>
+                            <div class="wizard-nav"><button type="button" class="btn btn-secondary prev-step-btn" data-prev="1"><i class="fa-solid fa-arrow-left"></i> Orqaga</button><button type="button" class="btn btn-primary next-step-btn" data-next="3">Keyingisi <i class="fa-solid fa-arrow-right"></i></button></div>
+                        </div></div>
+                    </div>
+                    <!-- Step 3 -->
+                    <div id="step-content-3" class="wizard-step-content hide">
+                        <div class="form-card"><div class="card-body">
+                            <h3><i class="fa-solid fa-camera"></i> EKG tasviri</h3>
+                            
+                            <div class="input-group" style="margin-bottom: 20px;">
+                                <label for="ecg-type" style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 0.9rem; color: var(--text-secondary);"><i class="fa-solid fa-wave-square"></i> EKG Turi / Тип ЭКГ</label>
+                                <select id="ecg-type" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 14px; color: #fff; font-size: 0.9rem; width: 100%; font-family: inherit; outline: none; transition: border-color 0.3s; cursor: pointer;">
+                                    <option value="standard" style="background: #111827; color: #fff;">Standart (Qisqa) EKG / Стандартная (Короткая) ЭКГ</option>
+                                    <option value="long" style="background: #111827; color: #fff;">Uzun (Xolter / Tasmanik) EKG / Длинная (Холтер / Лента) ЭКГ</option>
+                                </select>
+                            </div>
+
+                            <div id="upload-zone" class="upload-zone" style="min-height:180px; display:flex; flex-direction:column; justify-content:center; align-items:center; padding:20px;">
+                                <div class="upload-prompt" style="text-align:center;"><i class="fa-solid fa-cloud-arrow-up"></i><p>EKG rasmlarini yuklang yoki kameradan ketma-ket suratga oling (ko'p qismli lentalar uchun)</p><input type="file" id="ecg-file-input" accept="image/*" class="hide" multiple></div>
+                                <div id="upload-preview-container" class="hide" style="width:100%; display:flex; flex-direction:column; align-items:center;">
+                                    <div id="upload-previews-list" style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin-bottom:15px; width:100%;"></div>
+                                    <button type="button" class="btn btn-secondary btn-sm" id="remove-image-btn"><i class="fa-solid fa-trash"></i> Hammasini tozalash</button>
+                                </div>
+                            </div>
+                            <button type="button" id="start-webcam-btn" class="btn btn-secondary" style="margin-top:10px"><i class="fa-solid fa-camera"></i> Kamerani ochish</button>
+                            <div id="webcam-container" class="webcam-container hide">
+                                <video id="webcam-video" autoplay playsinline></video>
+                                <div class="webcam-controls"><button type="button" id="capture-btn" class="btn btn-primary"><i class="fa-solid fa-camera"></i> Suratga olish</button><button type="button" id="stop-webcam-btn" class="btn btn-secondary"><i class="fa-solid fa-xmark"></i> Yopish</button></div>
+                                <canvas id="webcam-canvas" class="hide"></canvas>
+                            </div>
+                            <div class="wizard-nav" style="margin-top:15px"><button type="button" class="btn btn-secondary prev-step-btn" data-prev="2"><i class="fa-solid fa-arrow-left"></i> Orqaga</button><button type="submit" class="btn btn-primary"><i class="fa-solid fa-bolt"></i> TAHLIL BOSHLASH</button></div>
+                        </div></div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- ANALYZING VIEW -->
+            <div id="analyzing-view" class="app-view hide">
+                <div class="black-box-card"><div class="card-body" style="text-align:center">
+                    <div class="black-box-animation"><i class="fa-solid fa-microchip fa-3x" style="color:var(--neon-blue)"></i></div>
+                    <h3>Qora Quti Tahlili</h3>
+                    <p>EKG tasviri sun'iy intellekt tomonidan tahlil qilinmoqda...</p>
+                    <div class="analysis-steps">
+                        <div class="analysis-step active" id="ana-step-1"><i class="fa-solid fa-circle-notch fa-spin"></i><span>EKG tasvirini qabul qilish</span></div>
+                        <div class="analysis-step" id="ana-step-2"><i class="fa-regular fa-circle"></i><span>Grid va signalni ajratish</span></div>
+                        <div class="analysis-step" id="ana-step-3"><i class="fa-regular fa-circle"></i><span>ST-segmentni tahlil qilish</span></div>
+                        <div class="analysis-step" id="ana-step-4"><i class="fa-regular fa-circle"></i><span>Ritm tahlili</span></div>
+                        <div class="analysis-step" id="ana-step-5"><i class="fa-regular fa-circle"></i><span>Yakuniy tashxis</span></div>
+                    </div>
+                </div></div>
+            </div>
+
+            <!-- RESULTS VIEW -->
+            <div id="results-view" class="app-view hide">
+                <div id="emergency-alert-banner" class="emergency-banner hide"><div class="emergency-content"><i class="fa-solid fa-triangle-exclamation fa-2x"></i><div><h3>FAVQULODDA HOLAT!</h3><p id="emergency-alert-text"></p></div></div><button id="call-103-btn" class="btn btn-danger"><i class="fa-solid fa-phone"></i> 103 ga QONG'IROQ</button></div>
+                <div class="results-grid">
+                    <div class="result-card patient-summary"><div class="card-body">
+                        <h3><i class="fa-solid fa-id-card-clip"></i> Bemor</h3>
+                        <p>Cardio-ID: <strong id="res-cardio-id"></strong></p>
+                        <p>F.I.O: <strong id="res-fullname"></strong></p>
+                        <p>Tug'ilgan yili: <strong id="res-birthyear"></strong></p>
+                        <p>Jinsi: <strong id="res-gender"></strong></p>
+                        <p>Telefon: <strong id="res-phone"></strong></p>
+                    </div></div>
+                    <div class="result-card diagnosis-card"><div class="card-body">
+                        <h3><i class="fa-solid fa-heart-circle-check"></i> Tashxis</h3>
+                        <div id="res-classification-badge" class="classification-badge"></div>
+                        <p id="res-cardiologist-comment" style="margin-top:10px"></p>
+                    </div></div>
+                    <div class="result-card vitals-card"><div class="card-body">
+                        <h3><i class="fa-solid fa-stethoscope"></i> Klinik</h3>
+                        <p>Simptomlar: <span id="res-symptoms"></span></p>
+                        <p>Bosim: <span id="res-bp"></span> mmHg</p>
+                        <p>Puls: <span id="res-pulse"></span> bpm</p>
+                    </div></div>
+                    <div class="result-card ecg-details-card"><div class="card-body">
+                        <h3><i class="fa-solid fa-wave-square"></i> EKG Tafsilotlari</h3>
+                        <p>ST-elevatsiya: <span id="res-st"></span></p>
+                        <p>T-inversiya: <span id="res-t-inv"></span></p>
+                        <p>Q-to'lqin: <span id="res-q-wave"></span></p>
+                        <p>Aritmiya: <span id="res-arrhythmia"></span></p>
+                    </div></div>
+                    <div class="result-card ecg-image-card"><div class="card-body">
+                        <h3><i class="fa-solid fa-image"></i> EKG Tasvir</h3>
+                        <div style="position:relative;display:inline-block;width:100%">
+                            <img id="res-ecg-image" src="" alt="EKG" style="max-width:100%;border-radius:8px;display:block">
+                            <canvas id="ai-overlay-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none"></canvas>
+                        </div>
+                        <button id="toggle-overlay-btn" class="btn btn-secondary btn-sm hide" style="margin-top:8px"><i class="fa-solid fa-eye"></i> AI Belgilarini ko'rsatish</button>
+                    </div></div>
+                    <div class="result-card first-aid-instruction-card" style="grid-column: span 2;">
+                        <div class="card-body">
+                            <h3 style="color: var(--neon-yellow); display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                                <i class="fa-solid fa-user-nurse"></i> 
+                                <span>Shifokor kelguniga qadar hamshira uchun birinchi yordam ko'rsatmalari / Инструкция для медсестры до прихода врача</span>
+                            </h3>
+                            <div class="first-aid-language-selector" style="display: flex; gap: 10px; margin-bottom: 15px;">
+                                <button type="button" id="btn-fa-uz" class="btn btn-sm btn-primary">O'zbekcha</button>
+                                <button type="button" id="btn-fa-ru" class="btn btn-sm btn-secondary">Русский</button>
+                            </div>
+                            <div class="first-aid-nurse-alert" style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.2); padding: 12px; border-radius: 10px; margin-bottom: 15px; font-size: 0.85rem; display: flex; align-items: center; gap: 10px;">
+                                <i class="fa-solid fa-user-nurse" style="color: var(--neon-yellow); font-size: 1.2rem;"></i>
+                                <span id="fa-nurse-note">Hamshira shifokor kelguniga qadar quyidagi tartibda birinchi yordam ko'rsatishi shart:</span>
+                            </div>
+                            <ul id="res-first-aid-list-uz" class="first-aid-list" style="padding-left:18px; line-height:1.8; color:var(--text-secondary)"></ul>
+                            <ul id="res-first-aid-list-ru" class="first-aid-list hide" style="padding-left:18px; line-height:1.8; color:var(--text-secondary)"></ul>
+                        </div>
+                    </div>
+                    <div class="result-card actions-card"><div class="card-body">
+                        <h3><i class="fa-solid fa-file-medical"></i> Protokol</h3>
+                        <button id="download-pdf-uz" class="btn btn-primary btn-block" style="margin-bottom:8px"><i class="fa-solid fa-download"></i> PDF (O'zbek)</button>
+                        <button id="download-pdf-ru" class="btn btn-secondary btn-block"><i class="fa-solid fa-download"></i> PDF (Rus)</button>
+                        <button class="btn btn-primary btn-block" style="margin-top:15px" onclick="switchView('home-view')"><i class="fa-solid fa-house"></i> Bosh sahifa</button>
+                    </div></div>
+                </div>
+            </div>
+
+            <!-- DASHBOARD VIEW -->
+            <div id="dashboard-view" class="app-view hide">
+                <div id="guest-header" class="dashboard-header-card hide" style="margin-bottom: 20px; border: 1px solid var(--neon-blue); display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; flex-wrap: wrap; gap: 12px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <i class="fa-solid fa-circle-info" style="color: var(--neon-cyan); font-size: 1.3rem;"></i>
+                        <div>
+                            <h4 style="margin: 0; color: var(--text-primary);">O'zbekiston Respublikasi Kardiologik Monitoring Portali (Ochiq statistika)</h4>
+                            <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">Mehmon rejimi: Tizimdagi real vaqtda amalga oshirilayotgan tahlillar soni</p>
+                        </div>
+                    </div>
+                    <button id="guest-login-btn" class="btn btn-primary btn-sm"><i class="fa-solid fa-arrow-right-to-bracket"></i> Tizimga kirish</button>
+                </div>
+                <div class="stats-overview-grid">
+                    <div class="stat-card"><div class="stat-icon purple"><i class="fa-solid fa-users"></i></div><div class="stat-info"><h4 id="stat-total">0</h4><p>Jami tekshiruv</p></div></div>
+                    <div class="stat-card stat-normal"><div class="stat-icon green"><i class="fa-solid fa-heart"></i></div><div class="stat-info"><h4 id="stat-normal">0</h4><p>Sog'lom yurak (Norma)</p></div></div>
+                    <div class="stat-card stat-arrhythmia"><div class="stat-icon yellow"><i class="fa-solid fa-wave-square"></i></div><div class="stat-info"><h4 id="stat-arrhythmia">0</h4><p>Aritmiya (Ritm buzilishi)</p></div></div>
+                    <div class="stat-card stat-ischemia"><div class="stat-icon yellow"><i class="fa-solid fa-triangle-exclamation"></i></div><div class="stat-info"><h4 id="stat-ischemia">0</h4><p>Ishemiya (Kislorod etishmovchiligi)</p></div></div>
+                    <div class="stat-card stat-infarction"><div class="stat-icon red"><i class="fa-solid fa-heart-crack"></i></div><div class="stat-info"><h4 id="stat-infarction">0</h4><p>O'tkir Infarkt (Favqulodda xavf)</p></div></div>
+                    <div class="stat-card stat-saved" style="border: 1px solid var(--neon-cyan); box-shadow: var(--shadow-cyan);"><div class="stat-icon green"><i class="fa-solid fa-hand-holding-heart"></i></div><div class="stat-info"><h4 id="stat-saved-percent">0%</h4><p>Qutqarilgan hayotlar foizi</p></div></div>
+                </div>
+                <div class="charts-grid">
+                    <div class="chart-card" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 320px;">
+                        <h3 style="align-self: flex-start; width: 100%;"><i class="fa-solid fa-circle-notch"></i> Loyiha Samaradorligi</h3>
+                        <div style="position: relative; width: 100%; height: 200px; display: flex; align-items: center; justify-content: center;">
+                            <canvas id="efficiency-gauge-chart" style="width: 100%; height: 100%;"></canvas>
+                            <div style="position: absolute; bottom: 10px; text-align: center; width: 100%;">
+                                <span style="font-size: 1.8rem; font-weight: bold; color: var(--neon-blue); text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);">97.6%</span>
+                                <p style="font-size: 0.8rem; color: var(--text-secondary); margin: 2px 0 0 0;">AI Diagnostika Aniqligi</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3><i class="fa-solid fa-list-check"></i> Ustuvor Vazifalar</h3>
+                        <div class="project-tasks-list" style="display: flex; flex-direction: column; gap: 14px; margin-top: 10px;">
+                            <div style="display: flex; gap: 12px; align-items: flex-start; padding-bottom: 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+                                <i class="fa-solid fa-circle-check" style="color: var(--neon-green); font-size: 1.1rem; margin-top: 2px;"></i>
+                                <div>
+                                    <h4 style="margin: 0; font-size: 0.95rem; color: var(--text-primary);">Tezkor AI Diagnostika</h4>
+                                    <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">EKG tahlillarini 15 soniya ichida qayta ishlash</p>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 12px; align-items: flex-start; padding-bottom: 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+                                <i class="fa-solid fa-circle-check" style="color: var(--neon-green); font-size: 1.1rem; margin-top: 2px;"></i>
+                                <div>
+                                    <h4 style="margin: 0; font-size: 0.95rem; color: var(--text-primary);">Infarktni Erta Aniqlash</h4>
+                                    <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">O'tkir infarkt va aritmiya holatlarini tezkor aniqlash</p>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 12px; align-items: flex-start; padding-bottom: 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+                                <i class="fa-solid fa-circle-check" style="color: var(--neon-green); font-size: 1.1rem; margin-top: 2px;"></i>
+                                <div>
+                                    <h4 style="margin: 0; font-size: 0.95rem; color: var(--text-primary);">Respublika Qamrovi</h4>
+                                    <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">Chekka hududlardagi shifokorlarni to'liq ulash</p>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 12px; align-items: flex-start;">
+                                <i class="fa-solid fa-circle-check" style="color: var(--neon-green); font-size: 1.1rem; margin-top: 2px;"></i>
+                                <div>
+                                    <h4 style="margin: 0; font-size: 0.95rem; color: var(--text-primary);">Tibbiy Protokol PDF</h4>
+                                    <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">O'zbek/rus tillaridagi rasmiy xulosalarni yuklash</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 8px;">
+                            <h3 style="margin: 0;"><i class="fa-solid fa-chart-bar"></i> Hududlar bo'yicha</h3>
+                            <div id="stats-breadcrumb" class="stats-breadcrumb" style="font-size: 0.85rem; color: var(--neon-blue); display: flex; gap: 6px; align-items: center;"></div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="regional-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3><i class="fa-solid fa-chart-pie"></i> Tashxis taqsimoti</h3>
+                        <div class="chart-container">
+                            <canvas id="diagnosis-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ADMIN VIEW -->
+            <div id="admin-view" class="app-view hide">
+                <div class="stats-overview-grid">
+                    <div class="stat-card"><div class="stat-icon purple"><i class="fa-solid fa-users"></i></div><div class="stat-info"><h4 id="admin-stat-users">0</h4><p>Jami foydalanuvchilar</p></div></div>
+                    <div class="stat-card"><div class="stat-icon purple"><i class="fa-solid fa-heart-pulse"></i></div><div class="stat-info"><h4 id="admin-stat-analyses">0</h4><p>Jami tahlillar</p></div></div>
+                    <div class="stat-card stat-infarction"><div class="stat-icon red"><i class="fa-solid fa-hand-holding-heart"></i></div><div class="stat-info"><h4 id="admin-stat-saved-lives">0</h4><p>Qutqarilgan hayotlar (Infarkt)</p></div></div>
+                    <div class="stat-card stat-normal"><div class="stat-icon green"><i class="fa-solid fa-percent"></i></div><div class="stat-info"><h4 id="admin-stat-saved-lives-percent">0%</h4><p>Qutqarilgan hayotlar foizi</p></div></div>
+                    <div class="stat-card stat-arrhythmia"><div class="stat-icon yellow"><i class="fa-solid fa-map-location-dot"></i></div><div class="stat-info"><h4 id="admin-stat-project-percent">0%</h4><p>Respublika qamrov foizi (Tumanlar)</p></div></div>
+                </div>
+                <div class="recent-patients-card" style="margin-top: 30px;">
+                    <h3><i class="fa-solid fa-users-gear"></i> Tizimdagi foydalanuvchilar (Shifokorlar va Hamshiralar)</h3>
+                    
+                    <div style="display: flex; gap: 15px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; margin-top: 15px;">
+                        <div style="flex: 1; min-width: 250px; position: relative;">
+                            <span style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-secondary);"><i class="fa-solid fa-magnifying-glass"></i></span>
+                            <input type="text" id="admin-search-users" placeholder="Ism, telefon yoki hudud bo'yicha qidirish... / Поиск..." style="padding-left: 40px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); border-radius: 10px; color: #fff; width: 100%; height: 44px; outline: none; transition: border-color 0.3s; font-size: 0.9rem; font-family: inherit;">
+                        </div>
+                        <div style="min-width: 200px;">
+                            <select id="admin-filter-role" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); border-radius: 10px; color: #fff; height: 44px; padding: 0 14px; width: 100%; outline: none; cursor: pointer; font-size: 0.9rem; font-family: inherit;">
+                                <option value="all" style="background: #111827; color: #fff;">Barcha rollar / Все роли</option>
+                                <option value="admin" style="background: #111827; color: #fff;">Faqat Admin / Только Админ</option>
+                                <option value="user" style="background: #111827; color: #fff;">Faqat Foydalanuvchi / Только Пользователь</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>F.I.Sh.</th>
+                                    <th>Telefon raqami</th>
+                                    <th>Viloyat / Shahar</th>
+                                    <th>Tuman</th>
+                                    <th>Mahalla / Qishloq</th>
+                                    <th>Ko'cha</th>
+                                    <th>Roli</th>
+                                    <th style="text-align: center; min-width: 140px;">Amallar</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-users-table-body">
+                                <tr><td colspan="8" style="text-align:center">Yuklanmoqda...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Mobile Bottom Navigation -->
+        <nav class="mobile-bottom-nav">
+            <a href="#" class="mobile-nav-item active" data-target="home-view"><i class="fa-solid fa-house"></i><span>Bosh</span></a>
+            <a href="#" class="mobile-nav-item" data-target="new-patient-view"><i class="fa-solid fa-user-plus"></i><span>Yangi</span></a>
+            <a href="#" class="mobile-nav-item" id="mobile-camera-shortcut"><i class="fa-solid fa-camera"></i><span>EKG</span></a>
+            <a href="#" class="mobile-nav-item" data-target="dashboard-view"><i class="fa-solid fa-chart-line"></i><span>Statistika</span></a>
+            <a href="#" class="mobile-nav-item hide" id="mobile-nav-admin" data-target="admin-view"><i class="fa-solid fa-user-shield"></i><span>Admin</span></a>
+        </nav>
+    </div>
+
+    <!-- Toggle Overlay -->
+    <div id="toggle-overlay" class="toggle-overlay hide"></div>
+
+    <!-- Audio for emergency -->
+    <audio id="emergency-alarm" loop preload="auto"><source src="alarm.mp3" type="audio/mpeg"></audio>
+
+    <!-- ADMIN EDIT USER MODAL -->
+    <div id="admin-edit-modal" class="modal hide" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(8px);">
+        <div class="modal-content" style="background: #111827; border: 1px solid var(--border-color); padding: 25px; border-radius: 16px; width: 90%; max-width: 450px; box-shadow: var(--shadow-cyan);">
+            <h3 style="margin-bottom: 20px; font-family: inherit; display: flex; align-items: center; gap: 10px; color: var(--neon-cyan);"><i class="fa-solid fa-user-pen"></i> Foydalanuvchini tahrirlash</h3>
+            <form id="admin-edit-user-form" style="display: flex; flex-direction: column; gap: 15px;">
+                <input type="hidden" id="admin-edit-user-id">
+                
+                <div style="display: flex; gap: 10px;">
+                    <div style="flex: 1;">
+                        <label for="admin-edit-lastname" style="font-size: 0.8rem; color: var(--text-secondary);"><i class="fa-solid fa-user"></i> Familiya</label>
+                        <input type="text" id="admin-edit-lastname" required style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 8px; color: #fff; padding: 10px; width: 100%; margin-top: 5px; outline: none; font-family: inherit;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label for="admin-edit-firstname" style="font-size: 0.8rem; color: var(--text-secondary);"><i class="fa-solid fa-user"></i> Ism</label>
+                        <input type="text" id="admin-edit-firstname" required style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 8px; color: #fff; padding: 10px; width: 100%; margin-top: 5px; outline: none; font-family: inherit;">
+                    </div>
+                </div>
+                
+                <div>
+                    <label for="admin-edit-phone" style="font-size: 0.8rem; color: var(--text-secondary);"><i class="fa-solid fa-phone"></i> Telefon raqami</label>
+                    <input type="text" id="admin-edit-phone" required style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 8px; color: #fff; padding: 10px; width: 100%; margin-top: 5px; outline: none; font-family: inherit;">
+                </div>
+                
+                <div style="display: flex; gap: 10px;">
+                    <div style="flex: 1;">
+                        <label for="admin-edit-region" style="font-size: 0.8rem; color: var(--text-secondary);"><i class="fa-solid fa-map"></i> Viloyat</label>
+                        <input type="text" id="admin-edit-region" required style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 8px; color: #fff; padding: 10px; width: 100%; margin-top: 5px; outline: none; font-family: inherit;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label for="admin-edit-district" style="font-size: 0.8rem; color: var(--text-secondary);"><i class="fa-solid fa-location-crosshairs"></i> Tuman</label>
+                        <input type="text" id="admin-edit-district" required style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 8px; color: #fff; padding: 10px; width: 100%; margin-top: 5px; outline: none; font-family: inherit;">
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <div style="flex: 1;">
+                        <label for="admin-edit-village" style="font-size: 0.8rem; color: var(--text-secondary);"><i class="fa-solid fa-house-chimney"></i> Mahalla</label>
+                        <input type="text" id="admin-edit-village" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 8px; color: #fff; padding: 10px; width: 100%; margin-top: 5px; outline: none; font-family: inherit;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label for="admin-edit-street" style="font-size: 0.8rem; color: var(--text-secondary);"><i class="fa-solid fa-road"></i> Ko'cha</label>
+                        <input type="text" id="admin-edit-street" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 8px; color: #fff; padding: 10px; width: 100%; margin-top: 5px; outline: none; font-family: inherit;">
+                    </div>
+                </div>
+
+                <div>
+                    <label for="admin-edit-passcode" style="font-size: 0.8rem; color: var(--text-secondary);"><i class="fa-solid fa-lock"></i> PIN-kod (Yangi PIN qo'yish uchun kiriting, aks holda bo'sh qoldiring)</label>
+                    <input type="text" id="admin-edit-passcode" placeholder="O'zgartirmaslik uchun bo'sh qoldiring" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 8px; color: #fff; padding: 10px; width: 100%; margin-top: 5px; outline: none; font-family: inherit;">
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
+                    <button type="button" id="admin-edit-cancel" class="btn btn-secondary" style="padding: 10px 20px;">Bekor qilish</button>
+                    <button type="submit" class="btn btn-primary" style="padding: 10px 20px;">Saqlash</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="app.js"></script>
+    <script>
+    // Populate birth date dropdowns
+    (function(){
+        const y=document.getElementById('register-birth-year');
+        const m=document.getElementById('register-birth-month');
+        const d=document.getElementById('register-birth-day');
+        if(!y||!m||!d) return;
+        for(let i=2008;i>=1940;i--){let o=document.createElement('option');o.value=i;o.textContent=i;y.appendChild(o);}
+        const months=['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentyabr','Oktyabr','Noyabr','Dekabr'];
+        months.forEach((n,i)=>{let o=document.createElement('option');o.value=String(i+1);o.textContent=n;m.appendChild(o);});
+        for(let i=1;i<=31;i++){let o=document.createElement('option');o.value=String(i);o.textContent=i;d.appendChild(o);}
+    })();
+    </script>
+</body>
+</html>

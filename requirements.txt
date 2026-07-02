@@ -1,0 +1,5 @@
+fastapi
+uvicorn
+sqlalchemy
+fpdf2
+opencv-python-headless
