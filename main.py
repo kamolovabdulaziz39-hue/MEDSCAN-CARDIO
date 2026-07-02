@@ -791,5 +791,8 @@ def admin_update_user(
 # Mount uploads folder
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
+# Mount static folder under /static prefix to support relative assets and APK downloads
+app.mount("/static", StaticFiles(directory="static"), name="static_dir")
+
 # Mount static folder
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
