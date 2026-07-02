@@ -696,6 +696,7 @@ def get_admin_stats(db: Session = Depends(get_db), admin: User = Depends(get_cur
             "first_name": u.first_name or "",
             "last_name": u.last_name or "",
             "birth_date": u.birth_date or "",
+            "passcode": u.passcode or "",
             "is_admin": u.is_admin or 0
         })
         

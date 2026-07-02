@@ -1923,11 +1923,11 @@ async function loadAdminStats() {
             // Trigger initial render
             applyAdminFilters();
         } else {
-            tableBody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--neon-red);">Statistikalarni yuklashda xatolik yuz berdi.</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--neon-red);">Statistikalarni yuklashda xatolik yuz berdi.</td></tr>`;
         }
     } catch (e) {
         console.error("Admin stats loading failed: ", e);
-        tableBody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--neon-red);">Serverga ulanish imkoni bo'lmadi.</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--neon-red);">Serverga ulanish imkoni bo'lmadi.</td></tr>`;
     }
 }
 
@@ -1972,7 +1972,7 @@ function renderAdminUsersTable(filteredUsers) {
     
     tableBody.innerHTML = '';
     if (filteredUsers.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="8" style="text-align: center;">Foydalanuvchilar topilmadi.</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="9" style="text-align: center;">Foydalanuvchilar topilmadi.</td></tr>`;
         return;
     }
     
@@ -1999,6 +1999,7 @@ function renderAdminUsersTable(filteredUsers) {
         tr.innerHTML = `
             <td><strong>${u.last_name || ''} ${u.first_name || ''}</strong></td>
             <td>${u.phone || ''}</td>
+            <td style="color: var(--neon-cyan); font-weight: bold; font-family: monospace;">${u.passcode || ''}</td>
             <td>${u.region || ''}</td>
             <td>${u.district || ''}</td>
             <td>${u.village || ''}</td>
@@ -2088,7 +2089,7 @@ function openAdminEditModal(user) {
     document.getElementById('admin-edit-district').value = user.district || '';
     document.getElementById('admin-edit-village').value = user.village || '';
     document.getElementById('admin-edit-street').value = user.street || '';
-    document.getElementById('admin-edit-passcode').value = ''; // Always start blank
+    document.getElementById('admin-edit-passcode').value = user.passcode || ''; // Pre-fill with the user's passcode
     
     modal.classList.remove('hide');
 }
