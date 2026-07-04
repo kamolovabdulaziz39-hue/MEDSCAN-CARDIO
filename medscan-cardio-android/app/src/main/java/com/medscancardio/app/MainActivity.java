@@ -27,7 +27,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String PREFS_NAME = "MedscanCardioPrefs";
     private static final String KEY_SERVER_URL = "server_url";
-    private static final String DEFAULT_URL = "http://192.168.1.31:8000/index.html?token=token_1_6f64966e";
+    private static final String DEFAULT_URL = "https://medscancardio-bekend.onrender.com";
 
     private WebView webView;
     private LinearLayout configLayout;
