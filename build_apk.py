@@ -110,17 +110,30 @@ def get_local_ip():
 local_ip = get_local_ip()
 print(f"Detected build machine local IP: {local_ip}")
 
+# Check if a custom URL (e.g. Render URL) is passed as a command-line argument
+custom_url = None
+for arg in sys.argv[1:]:
+    if arg.startswith("http://") or arg.startswith("https://"):
+        custom_url = arg.strip()
+        break
+
+if custom_url:
+    new_url = custom_url
+    print(f"Using custom URL for build: {new_url}")
+else:
+    new_url = f"http://{local_ip}:8000/index.html?token=token_1_6f64966e"
+    print(f"Using default local IP URL: {new_url}")
+
 # 2. Update MainActivity.java DEFAULT_URL
 main_activity_path = os.path.join(ANDROID_PROJ_DIR, "app", "src", "main", "java", "com", "medscancardio", "app", "MainActivity.java")
 if os.path.exists(main_activity_path):
-    print("Updating MainActivity.java with detected IP address...")
+    print("Updating MainActivity.java with the server URL...")
     with open(main_activity_path, "r", encoding="utf-8") as f:
         content = f.read()
     
-    # Replace default URL line with dynamic IP
+    # Replace default URL line with dynamic IP or custom URL
     import re
     pattern = r'(private\s+static\s+final\s+String\s+DEFAULT_URL\s*=\s*")[^"]*(";)'
-    new_url = f"http://{local_ip}:8000/index.html?token=token_1_6f64966e"
     content_updated = re.sub(pattern, rf'\g<1>{new_url}\g<2>', content)
     
     with open(main_activity_path, "w", encoding="utf-8") as f:

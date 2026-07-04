@@ -3,3 +3,5 @@ uvicorn
 sqlalchemy
 fpdf2
 opencv-python-headless
+python-multipart
+numpy
