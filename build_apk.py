@@ -94,6 +94,66 @@ env["JAVA_HOME"] = JDK_DIR
 env["ANDROID_HOME"] = SDK_DIR
 env["PATH"] = f"{os.path.join(JDK_DIR, 'bin')};{os.path.join(SDK_DIR, 'cmdline-tools', 'latest', 'bin')};{os.path.join(gradle_dest, 'bin')};{env.get('PATH', '')}"
 
+# --- Dynamic Updates for "Real App" ---
+# 1. Get local IP address dynamically
+import socket
+def get_local_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return '127.0.0.1'
+
+local_ip = get_local_ip()
+print(f"Detected build machine local IP: {local_ip}")
+
+# 2. Update MainActivity.java DEFAULT_URL
+main_activity_path = os.path.join(ANDROID_PROJ_DIR, "app", "src", "main", "java", "com", "medscancardio", "app", "MainActivity.java")
+if os.path.exists(main_activity_path):
+    print("Updating MainActivity.java with detected IP address...")
+    with open(main_activity_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    
+    # Replace default URL line with dynamic IP
+    import re
+    pattern = r'(private\s+static\s+final\s+String\s+DEFAULT_URL\s*=\s*")[^"]*(";)'
+    new_url = f"http://{local_ip}:8000/index.html?token=token_1_6f64966e"
+    content_updated = re.sub(pattern, rf'\g<1>{new_url}\g<2>', content)
+    
+    with open(main_activity_path, "w", encoding="utf-8") as f:
+        f.write(content_updated)
+
+# 3. Create drawable resource directory and copy the custom icon
+drawable_dir = os.path.join(ANDROID_PROJ_DIR, "app", "src", "main", "res", "drawable")
+os.makedirs(drawable_dir, exist_ok=True)
+src_icon = os.path.join(BASE_DIR, "static", "icon-512.png")
+dest_icon = os.path.join(drawable_dir, "ic_launcher.png")
+if os.path.exists(src_icon):
+    print("Copying custom app icon...")
+    shutil.copy(src_icon, dest_icon)
+
+# 4. Update AndroidManifest.xml to use the custom icon
+manifest_path = os.path.join(ANDROID_PROJ_DIR, "app", "src", "main", "AndroidManifest.xml")
+if os.path.exists(manifest_path):
+    print("Updating AndroidManifest.xml to use custom icon...")
+    with open(manifest_path, "r", encoding="utf-8") as f:
+        manifest_content = f.read()
+    
+    # Replace android:icon with @drawable/ic_launcher and add roundIcon
+    old_icon = 'android:icon="@android:mipmap/sym_def_app_icon"'
+    new_icon = 'android:icon="@drawable/ic_launcher"\n        android:roundIcon="@drawable/ic_launcher"'
+    if old_icon in manifest_content:
+        manifest_content = manifest_content.replace(old_icon, new_icon)
+    elif 'android:icon=' in manifest_content and '@drawable/ic_launcher' not in manifest_content:
+        import re
+        manifest_content = re.sub(r'android:icon="[^"]+"', 'android:icon="@drawable/ic_launcher"\n        android:roundIcon="@drawable/ic_launcher"', manifest_content)
+        
+    with open(manifest_path, "w", encoding="utf-8") as f:
+        f.write(manifest_content)
+
 # 4. Install Android platform 34 and build-tools 34.0.0
 print("Installing Android SDK components...")
 sdkmanager = os.path.join(SDK_DIR, "cmdline-tools", "latest", "bin", "sdkmanager.bat")
@@ -104,12 +164,16 @@ print("Building APK using Gradle...")
 gradle_bin = os.path.join(gradle_dest, "bin", "gradle.bat")
 subprocess.run([gradle_bin, "assembleDebug"], cwd=ANDROID_PROJ_DIR, env=env, shell=True, check=True)
 
-# 6. Copy generated APK to static folder
+# 6. Copy generated APK to static folder and root folder
 src_apk = os.path.join(ANDROID_PROJ_DIR, "app", "build", "outputs", "apk", "debug", "app-debug.apk")
-dest_apk = os.path.join(BASE_DIR, "static", "medscan-cardio.apk")
+dest_apk_static = os.path.join(BASE_DIR, "static", "medscan-cardio.apk")
+dest_apk_root = os.path.join(BASE_DIR, "medscan-cardio.apk")
 
 if os.path.exists(src_apk):
-    shutil.copy(src_apk, dest_apk)
-    print(f"SUCCESS! APK generated and copied to: {dest_apk}")
+    shutil.copy(src_apk, dest_apk_static)
+    shutil.copy(src_apk, dest_apk_root)
+    print(f"SUCCESS! APK generated and copied to:")
+    print(f" - {dest_apk_static}")
+    print(f" - {dest_apk_root}")
 else:
     print("Error: APK file was not found after compilation.")
