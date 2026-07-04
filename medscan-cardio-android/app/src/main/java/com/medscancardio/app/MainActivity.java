@@ -69,6 +69,8 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setSupportZoom(false);
         webSettings.setBuiltInZoomControls(false);
         webSettings.setDisplayZoomControls(false);
+        webSettings.setTextZoom(100); // Lock font zoom to 100% to prevent system font sizes from resizing elements
+        webSettings.setDefaultTextEncodingName("utf-8");
         
         // Custom User-Agent suffix for backend/frontend analytics
         String defaultUserAgent = webSettings.getUserAgentString();
