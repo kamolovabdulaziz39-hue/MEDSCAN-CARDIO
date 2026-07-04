@@ -63,6 +63,20 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setAllowContentAccess(true);
         webSettings.setMediaPlaybackRequiresUserGesture(false);
 
+        // Native app look & feel optimizations
+        webSettings.setUseWideViewPort(true);
+        webSettings.setLoadWithOverviewMode(true);
+        webSettings.setSupportZoom(false);
+        webSettings.setBuiltInZoomControls(false);
+        webSettings.setDisplayZoomControls(false);
+        
+        // Custom User-Agent suffix for backend/frontend analytics
+        String defaultUserAgent = webSettings.getUserAgentString();
+        webSettings.setUserAgentString(defaultUserAgent + " MedscanCardioAndroid/1.0");
+
+        // Enable Hardware Acceleration for smooth animations and performance
+        webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+
         // Enable file downloads via system browser
         webView.setDownloadListener(new android.webkit.DownloadListener() {
             @Override
