@@ -1396,10 +1396,18 @@ function setupWebcam() {
     startBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
         try {
-            webcamStream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: 'environment' }, 
-                audio: false 
-            });
+            try {
+                webcamStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' }, 
+                    audio: false 
+                });
+            } catch (envErr) {
+                // Fallback to any camera if environment camera fails
+                webcamStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: true, 
+                    audio: false 
+                });
+            }
             video.srcObject = webcamStream;
             prompt.classList.add('hide');
             container.classList.remove('hide');
