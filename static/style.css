@@ -1717,8 +1717,35 @@ body {
 @media(max-width:600px) { .project-features-grid { grid-template-columns:1fr; } }
 
 /* PROFILE DETAILS */
-.profile-details p { padding:10px 0; border-bottom:1px solid var(--border-color); font-size:1rem; }
-.profile-details p strong { color:var(--text-secondary); min-width:130px; display:inline-block; }
+.profile-details p { 
+    display: flex; 
+    flex-wrap: wrap; 
+    padding: 10px 0; 
+    border-bottom: 1px solid var(--border-color); 
+    font-size: 1rem; 
+    gap: 8px;
+}
+.profile-details p strong { 
+    color: var(--text-secondary); 
+    min-width: 140px; 
+    display: inline-block; 
+}
+.profile-details p span {
+    flex: 1;
+    min-width: 180px;
+    word-break: break-word;
+}
+#profile-edit-form {
+    width: 100%;
+    max-width: 400px;
+}
+#profile-edit-form .input-group {
+    width: 100%;
+}
+#profile-edit-form .input-group input {
+    width: 100%;
+    box-sizing: border-box;
+}
 
 @keyframes fadeInUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
 
