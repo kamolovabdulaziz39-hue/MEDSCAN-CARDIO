@@ -6,7 +6,7 @@
     <title>MEDSCAN CARDIO – Tezkor EKG Diagnosis</title>
     <meta name="description" content="MEDSCAN CARDIO - Sun'iy intellekt asosida EKG tahlili va kardiologik diagnostika tizimi">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=2">
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="favicon.ico" type="image/x-icon">
 </head>
@@ -84,7 +84,7 @@
                 <div id="register-error" class="error-msg hide"></div>
                 <button type="submit" class="btn btn-primary btn-block">Ro'yxatdan o'tish <i class="fa-solid fa-user-plus"></i></button>
             </form>
-            <div style="margin: 20px 0; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 15px; display: flex; flex-direction: column; gap: 10px;">
+            <div style="margin: 20px 0; border-top: 1px solid var(--border-color); padding-top: 15px; display: flex; flex-direction: column; gap: 10px;">
                 <button id="public-stats-btn" class="btn btn-secondary btn-block" style="border: 1px solid var(--neon-cyan); box-shadow: var(--shadow-cyan);"><i class="fa-solid fa-chart-simple"></i> Respublika Ochiq Statistikasi</button>
                 <a href="/static/medscan-cardio.apk" class="btn btn-secondary btn-block" style="border: 1px solid var(--neon-green); box-shadow: var(--shadow-green); text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none;" download>
                     <i class="fa-brands fa-android" style="color: var(--neon-green); font-size: 1.1rem;"></i> Android Ilovani Yuklash (APK)
@@ -138,12 +138,28 @@
                         <button class="btn btn-primary" onclick="switchView('new-patient-view')"><i class="fa-solid fa-plus"></i> Yangi bemor tekshiruvi</button>
                     </div>
                 </div></div>
+                
+                <!-- Mobile App Download & iOS Install Banner -->
+                <div class="mobile-app-banner" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 20px; padding: 20px; margin-bottom: 25px; box-shadow: 0 10px 20px rgba(0,0,0,0.02); display: flex; flex-direction: column; gap: 15px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <i class="fa-solid fa-mobile-screen-button" style="font-size: 1.8rem; color: var(--neon-blue);"></i>
+                        <div>
+                            <h4 style="margin: 0; font-size: 1.05rem; color: var(--text-primary); font-weight: 600;">MEDSCAN CARDIO mobil ilovasi</h4>
+                            <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">Tizimni mobil telefonda yanada qulay va tezkor ishlatish uchun</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px; width: 100%; flex-wrap: wrap;">
+                        <a href="/static/medscan-cardio.apk" class="btn btn-success btn-sm" download style="flex: 1; min-width: 140px; text-decoration: none; justify-content: center; display: inline-flex; align-items: center; gap: 8px;"><i class="fa-brands fa-android"></i> Android APK</a>
+                        <button type="button" id="open-ios-instructions-btn" class="btn btn-secondary btn-sm" style="flex: 1; min-width: 140px; justify-content: center; display: inline-flex; align-items: center; gap: 8px;"><i class="fa-brands fa-apple"></i> iPhone yo'riqnomasi</button>
+                    </div>
+                </div>
+
                 <div id="mobile-install-banner" class="mobile-install-banner hide"><p><i class="fa-solid fa-mobile-screen-button"></i> Ilovani telefoningizga o'rnating!</p><button id="mobile-install-btn" class="btn btn-primary btn-sm">O'rnatish</button></div>
                 <div class="recent-patients-card">
                     <h3><i class="fa-solid fa-clock-rotate-left"></i> So'nggi tekshiruvlar</h3>
                     <div class="table-filters" style="display:flex;gap:12px;margin-bottom:16px">
-                        <input type="text" id="patient-search" placeholder="Bemor ismi yoki ID bo'yicha qidirish..." style="flex:1;background:rgba(255,255,255,0.05);border:1px solid var(--border-color);border-radius:10px;padding:10px 14px;color:#fff;font-size:0.9rem">
-                        <select id="diagnosis-filter" style="background:rgba(255,255,255,0.05);border:1px solid var(--border-color);border-radius:10px;padding:10px 14px;color:#fff;font-size:0.9rem">
+                        <input type="text" id="patient-search" placeholder="Bemor ismi yoki ID bo'yicha qidirish..." style="flex:1;background:#fff;border:1px solid var(--border-color);border-radius:10px;padding:10px 14px;color:var(--text-primary);font-size:0.9rem">
+                        <select id="diagnosis-filter" style="background:#fff;border:1px solid var(--border-color);border-radius:10px;padding:10px 14px;color:var(--text-primary);font-size:0.9rem">
                             <option value="ALL">Barcha tashxislar</option>
                             <option value="NORMAL">Normal</option>
                             <option value="ISCHEMIA">Ishemiya</option>
@@ -159,12 +175,31 @@
             <div id="profile-view" class="app-view hide">
                 <div class="dashboard-header-card"><div class="card-body">
                     <h3><i class="fa-solid fa-id-card" style="color:var(--neon-blue)"></i> Mening Profilim</h3>
-                    <div class="profile-details">
+                    <div id="profile-view-mode" class="profile-details">
                         <p><strong>Ism:</strong> <span id="profile-first-name"></span></p>
                         <p><strong>Familiya:</strong> <span id="profile-last-name"></span></p>
                         <p><strong>Telefon:</strong> <span id="profile-phone"></span></p>
                         <p><strong>Hudud:</strong> <span id="profile-region"></span></p>
                         <p><strong>Tug'ilgan sana:</strong> <span id="profile-birthdate"></span></p>
+                        <button id="profile-edit-btn" class="btn btn-secondary" style="margin-top: 15px;"><i class="fa-solid fa-user-pen"></i> Tahrirlash</button>
+                    </div>
+                    <div id="profile-edit-mode" class="profile-details hide">
+                        <form id="profile-edit-form" style="display: flex; flex-direction: column; gap: 15px; max-width: 400px; margin-top: 15px;">
+                            <div class="input-group" style="margin-bottom: 0;">
+                                <label for="profile-edit-firstname-input"><i class="fa-solid fa-user"></i> Ism</label>
+                                <input type="text" id="profile-edit-firstname-input" required>
+                            </div>
+                            <div class="input-group" style="margin-bottom: 0;">
+                                <label for="profile-edit-lastname-input"><i class="fa-solid fa-user"></i> Familiya</label>
+                                <input type="text" id="profile-edit-lastname-input" required>
+                            </div>
+                            <div id="profile-edit-error" class="error-msg hide" style="margin-bottom: 0;"></div>
+                            <div id="profile-edit-success" class="success-msg hide" style="color: var(--neon-green); font-size: 0.9rem; margin-top: 5px;"></div>
+                            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                                <button type="button" id="profile-edit-cancel-btn" class="btn btn-secondary" style="flex: 1;">Bekor qilish</button>
+                                <button type="submit" class="btn btn-primary" style="flex: 1;">Saqlash</button>
+                            </div>
+                        </form>
                     </div>
                 </div></div>
             </div>
@@ -216,9 +251,9 @@
                             
                             <div class="input-group" style="margin-bottom: 20px;">
                                 <label for="ecg-type" style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 0.9rem; color: var(--text-secondary);"><i class="fa-solid fa-wave-square"></i> EKG Turi / Тип ЭКГ</label>
-                                <select id="ecg-type" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 14px; color: #fff; font-size: 0.9rem; width: 100%; font-family: inherit; outline: none; transition: border-color 0.3s; cursor: pointer;">
-                                    <option value="standard" style="background: #111827; color: #fff;">Standart (Qisqa) EKG / Стандартная (Короткая) ЭКГ</option>
-                                    <option value="long" style="background: #111827; color: #fff;">Uzun (Xolter / Tasmanik) EKG / Длинная (Холтер / Лента) ЭКГ</option>
+                                <select id="ecg-type" style="background: #fff; border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 14px; color: var(--text-primary); font-size: 0.9rem; width: 100%; font-family: inherit; outline: none; transition: border-color 0.3s; cursor: pointer;">
+                                    <option value="standard">Standart (Qisqa) EKG / Стандартная (Короткая) ЭКГ</option>
+                                    <option value="long">Uzun (Xolter / Tasmanik) EKG / Длинная (Холтер / Лента) ЭКГ</option>
                                 </select>
                             </div>
 
@@ -419,13 +454,13 @@
                     <div style="display: flex; gap: 15px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; margin-top: 15px;">
                         <div style="flex: 1; min-width: 250px; position: relative;">
                             <span style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-secondary);"><i class="fa-solid fa-magnifying-glass"></i></span>
-                            <input type="text" id="admin-search-users" placeholder="Ism, telefon yoki hudud bo'yicha qidirish... / Поиск..." style="padding-left: 40px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); border-radius: 10px; color: #fff; width: 100%; height: 44px; outline: none; transition: border-color 0.3s; font-size: 0.9rem; font-family: inherit;">
+                            <input type="text" id="admin-search-users" placeholder="Ism, telefon yoki hudud bo'yicha qidirish... / Поиск..." style="padding-left: 40px; background: #fff; border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-primary); width: 100%; height: 44px; outline: none; transition: border-color 0.3s; font-size: 0.9rem; font-family: inherit;">
                         </div>
                         <div style="min-width: 200px;">
-                            <select id="admin-filter-role" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); border-radius: 10px; color: #fff; height: 44px; padding: 0 14px; width: 100%; outline: none; cursor: pointer; font-size: 0.9rem; font-family: inherit;">
-                                <option value="all" style="background: #111827; color: #fff;">Barcha rollar / Все роли</option>
-                                <option value="admin" style="background: #111827; color: #fff;">Faqat Admin / Только Админ</option>
-                                <option value="user" style="background: #111827; color: #fff;">Faqat Foydalanuvchi / Только Пользователь</option>
+                            <select id="admin-filter-role" style="background: #fff; border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-primary); height: 44px; padding: 0 14px; width: 100%; outline: none; cursor: pointer; font-size: 0.9rem; font-family: inherit;">
+                                <option value="all">Barcha rollar / Все роли</option>
+                                <option value="admin">Faqat Admin / Только Админ</option>
+                                <option value="user">Faqat Foydalanuvchi / Только Пользователь</option>
                             </select>
                         </div>
                     </div>
@@ -480,44 +515,44 @@
                 <div style="display: flex; gap: 10px;">
                     <div style="flex: 1;">
                         <label for="admin-edit-lastname" style="font-size: 0.8rem; color: var(--text-secondary);"><i class="fa-solid fa-user"></i> Familiya</label>
-                        <input type="text" id="admin-edit-lastname" required style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 8px; color: #fff; padding: 10px; width: 100%; margin-top: 5px; outline: none; font-family: inherit;">
+                        <input type="text" id="admin-edit-lastname" required style="background: #fff; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 10px; width: 100%; margin-top: 5px; outline: none; font-family: inherit;">
                     </div>
                     <div style="flex: 1;">
                         <label for="admin-edit-firstname" style="font-size: 0.8rem; color: var(--text-secondary);"><i class="fa-solid fa-user"></i> Ism</label>
-                        <input type="text" id="admin-edit-firstname" required style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 8px; color: #fff; padding: 10px; width: 100%; margin-top: 5px; outline: none; font-family: inherit;">
+                        <input type="text" id="admin-edit-firstname" required style="background: #fff; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 10px; width: 100%; margin-top: 5px; outline: none; font-family: inherit;">
                     </div>
                 </div>
                 
                 <div>
                     <label for="admin-edit-phone" style="font-size: 0.8rem; color: var(--text-secondary);"><i class="fa-solid fa-phone"></i> Telefon raqami</label>
-                    <input type="text" id="admin-edit-phone" required style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 8px; color: #fff; padding: 10px; width: 100%; margin-top: 5px; outline: none; font-family: inherit;">
+                    <input type="text" id="admin-edit-phone" required style="background: #fff; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 10px; width: 100%; margin-top: 5px; outline: none; font-family: inherit;">
                 </div>
                 
                 <div style="display: flex; gap: 10px;">
                     <div style="flex: 1;">
                         <label for="admin-edit-region" style="font-size: 0.8rem; color: var(--text-secondary);"><i class="fa-solid fa-map"></i> Viloyat</label>
-                        <input type="text" id="admin-edit-region" required style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 8px; color: #fff; padding: 10px; width: 100%; margin-top: 5px; outline: none; font-family: inherit;">
+                        <input type="text" id="admin-edit-region" required style="background: #fff; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 10px; width: 100%; margin-top: 5px; outline: none; font-family: inherit;">
                     </div>
                     <div style="flex: 1;">
                         <label for="admin-edit-district" style="font-size: 0.8rem; color: var(--text-secondary);"><i class="fa-solid fa-location-crosshairs"></i> Tuman</label>
-                        <input type="text" id="admin-edit-district" required style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 8px; color: #fff; padding: 10px; width: 100%; margin-top: 5px; outline: none; font-family: inherit;">
+                        <input type="text" id="admin-edit-district" required style="background: #fff; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 10px; width: 100%; margin-top: 5px; outline: none; font-family: inherit;">
                     </div>
                 </div>
 
                 <div style="display: flex; gap: 10px;">
                     <div style="flex: 1;">
                         <label for="admin-edit-village" style="font-size: 0.8rem; color: var(--text-secondary);"><i class="fa-solid fa-house-chimney"></i> Mahalla</label>
-                        <input type="text" id="admin-edit-village" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 8px; color: #fff; padding: 10px; width: 100%; margin-top: 5px; outline: none; font-family: inherit;">
+                        <input type="text" id="admin-edit-village" style="background: #fff; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 10px; width: 100%; margin-top: 5px; outline: none; font-family: inherit;">
                     </div>
                     <div style="flex: 1;">
                         <label for="admin-edit-street" style="font-size: 0.8rem; color: var(--text-secondary);"><i class="fa-solid fa-road"></i> Ko'cha</label>
-                        <input type="text" id="admin-edit-street" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 8px; color: #fff; padding: 10px; width: 100%; margin-top: 5px; outline: none; font-family: inherit;">
+                        <input type="text" id="admin-edit-street" style="background: #fff; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 10px; width: 100%; margin-top: 5px; outline: none; font-family: inherit;">
                     </div>
                 </div>
 
                 <div>
                     <label for="admin-edit-passcode" style="font-size: 0.8rem; color: var(--text-secondary);"><i class="fa-solid fa-lock"></i> PIN-kod (Yangi PIN qo'yish uchun kiriting, aks holda bo'sh qoldiring)</label>
-                    <input type="text" id="admin-edit-passcode" placeholder="O'zgartirmaslik uchun bo'sh qoldiring" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 8px; color: #fff; padding: 10px; width: 100%; margin-top: 5px; outline: none; font-family: inherit;">
+                    <input type="text" id="admin-edit-passcode" placeholder="O'zgartirmaslik uchun bo'sh qoldiring" style="background: #fff; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 10px; width: 100%; margin-top: 5px; outline: none; font-family: inherit;">
                 </div>
 
                 <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
@@ -525,6 +560,35 @@
                     <button type="submit" class="btn btn-primary" style="padding: 10px 20px;">Saqlash</button>
                 </div>
             </form>
+        </div>
+    </div>
+    
+    <!-- iOS INSTALLATION GUIDE MODAL -->
+    <div id="ios-install-modal" class="modal hide" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 11000; backdrop-filter: blur(8px);">
+        <div class="modal-content" style="background: #FFFFFF; border: 1px solid var(--border-color); padding: 25px; border-radius: 20px; width: 90%; max-width: 400px; box-shadow: 0 15px 30px rgba(0,0,0,0.15); color: var(--text-primary);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0; display: flex; align-items: center; gap: 10px; color: var(--neon-blue); font-size: 1.2rem; font-weight: 600;"><i class="fa-brands fa-apple" style="font-size: 1.4rem;"></i> iPhone o'rnatish yo'riqnomasi</h3>
+                <button type="button" id="close-ios-modal" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-secondary);"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 16px; font-size: 0.95rem; line-height: 1.5; color: var(--text-secondary);">
+                <div style="display: flex; gap: 12px; align-items: flex-start;">
+                    <div style="background: rgba(2, 132, 199, 0.1); color: var(--neon-blue); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;">1</div>
+                    <p style="margin: 0;">iPhone qurilmangizda <strong>Safari</strong> brauzerini ochib, tizim manziliga kiring.</p>
+                </div>
+                <div style="display: flex; gap: 12px; align-items: flex-start;">
+                    <div style="background: rgba(2, 132, 199, 0.1); color: var(--neon-blue); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;">2</div>
+                    <p style="margin: 0;">Brauzerning pastki qismidagi <strong>"Share" (Ulashish)</strong> <i class="fa-solid fa-arrow-up-from-bracket" style="color: var(--neon-blue);"></i> tugmasini bosing.</p>
+                </div>
+                <div style="display: flex; gap: 12px; align-items: flex-start;">
+                    <div style="background: rgba(2, 132, 199, 0.1); color: var(--neon-blue); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;">3</div>
+                    <p style="margin: 0;">Ochilgan menyudan <strong>"Add to Home Screen" (Ekraningizga qo'shish)</strong> <i class="fa-regular fa-square-plus" style="color: var(--neon-blue);"></i> bandini tanlang.</p>
+                </div>
+                <div style="display: flex; gap: 12px; align-items: flex-start;">
+                    <div style="background: rgba(2, 132, 199, 0.1); color: var(--neon-blue); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;">4</div>
+                    <p style="margin: 0;">Yuqori o'ng burchakdagi <strong>"Add" (Qo'shish)</strong> tugmasini bosing. Medscan Cardio ilovasi telefoningiz ekranida paydo bo'ladi!</p>
+                </div>
+            </div>
+            <button type="button" id="close-ios-modal-btn" class="btn btn-primary btn-block" style="margin-top: 25px; background: var(--neon-blue); border: none; box-shadow: var(--shadow-blue);">Tushunarli</button>
         </div>
     </div>
 

@@ -43,7 +43,9 @@ document.addEventListener('DOMContentLoaded', () => {
     setupToggleOverlay();
     setupPWAInstallPrompt();
     setupMobileNavigation();
+    setupIosInstallModal();
     registerServiceWorker();
+    setupProfileEdit();
 });
 
 // 1. AUTHENTICATION & LOGIN FLOW
@@ -1216,8 +1218,8 @@ function drawEfficiencyGaugeChart() {
             datasets: [{
                 data: [97.6, 2.4],
                 backgroundColor: [
-                    '#00F0FF',
-                    'rgba(255, 255, 255, 0.05)'
+                    '#0284C7',
+                    '#E2E8F0'
                 ],
                 borderWidth: 0
             }]
@@ -1251,8 +1253,8 @@ function drawRegionalChart(regionalStats) {
             datasets: [{
                 label: 'Tekshiruvlar',
                 data: data,
-                backgroundColor: 'rgba(139, 92, 246, 0.75)',
-                borderColor: '#8B5CF6',
+                backgroundColor: 'rgba(124, 58, 237, 0.75)',
+                borderColor: '#7C3AED',
                 borderWidth: 1,
                 borderRadius: 8
             }]
@@ -1282,12 +1284,12 @@ function drawRegionalChart(regionalStats) {
             },
             scales: {
                 y: {
-                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
-                    ticks: { color: '#9CA3AF' }
+                    grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                    ticks: { color: '#475569' }
                 },
                 x: {
                     grid: { display: false },
-                    ticks: { color: '#9CA3AF' }
+                    ticks: { color: '#475569' }
                 }
             }
         }
@@ -1318,9 +1320,9 @@ function drawDiagnosisPieChart(normal, infarcts, otherPathologies) {
             datasets: [{
                 data: [normal, infarcts, otherPathologies],
                 backgroundColor: [
-                    '#10B981', // Emerald green
-                    '#FF2E63', // Red
-                    '#F59E0B'  // Yellow
+                    '#059669', // Emerald green
+                    '#E11D48', // Red
+                    '#D97706'  // Yellow
                 ],
                 borderWidth: 0
             }]
@@ -1331,7 +1333,7 @@ function drawDiagnosisPieChart(normal, infarcts, otherPathologies) {
             plugins: {
                 legend: {
                     position: 'bottom',
-                    labels: { color: '#F3F4F6', boxWidth: 12 }
+                    labels: { color: '#0F172A', boxWidth: 12 }
                 }
             },
             cutout: '70%'
@@ -1487,8 +1489,8 @@ function drawAIOverlay(classification) {
     ctx.lineWidth = 2.5;
     
     if (classification === 'ACUTE_INFARCTION') {
-        ctx.strokeStyle = '#FF2E63';
-        ctx.fillStyle = 'rgba(255, 46, 99, 0.1)';
+        ctx.strokeStyle = '#E11D48';
+        ctx.fillStyle = 'rgba(225, 29, 72, 0.1)';
         
         ctx.strokeRect(120, 80, 180, 100);
         ctx.fillRect(120, 80, 180, 100);
@@ -1497,28 +1499,28 @@ function drawAIOverlay(classification) {
         ctx.fillRect(450, 75, 160, 100);
         
         ctx.font = 'bold 12px monospace';
-        ctx.fillStyle = '#FF2E63';
+        ctx.fillStyle = '#E11D48';
         ctx.fillText('ST ELEVATSIYA (+3.5mm)', 125, 75);
         ctx.fillText('PATOLOGIK Q TISHCHA', 455, 70);
     } else if (classification === 'ISCHEMIA') {
-        ctx.strokeStyle = '#F59E0B';
-        ctx.fillStyle = 'rgba(245, 158, 11, 0.1)';
+        ctx.strokeStyle = '#D97706';
+        ctx.fillStyle = 'rgba(217, 119, 6, 0.1)';
         
         ctx.strokeRect(250, 120, 150, 80);
         ctx.fillRect(250, 120, 150, 80);
         
         ctx.font = 'bold 12px monospace';
-        ctx.fillStyle = '#F59E0B';
+        ctx.fillStyle = '#D97706';
         ctx.fillText('T TO\'LQINI INVERSIYASI', 255, 115);
     } else if (classification === 'ARRHYTHMIA') {
-        ctx.strokeStyle = '#8B5CF6';
-        ctx.fillStyle = 'rgba(139, 92, 246, 0.1)';
+        ctx.strokeStyle = '#7C3AED';
+        ctx.fillStyle = 'rgba(124, 58, 237, 0.1)';
         
         ctx.strokeRect(180, 50, 280, 150);
         ctx.fillRect(180, 50, 280, 150);
         
         ctx.font = 'bold 12px monospace';
-        ctx.fillStyle = '#8B5CF6';
+        ctx.fillStyle = '#7C3AED';
         ctx.fillText('R-R INTERVALI NOTEKISLIGI', 185, 45);
     }
 }
@@ -2157,5 +2159,123 @@ document.addEventListener('DOMContentLoaded', () => {
         link.href = `${API_BASE}/static/medscan-cardio.apk`;
     });
 });
+
+// Implementation of iOS installation instructions modal
+function setupIosInstallModal() {
+    const openBtn = document.getElementById('open-ios-instructions-btn');
+    const modal = document.getElementById('ios-install-modal');
+    const closeBtn = document.getElementById('close-ios-modal');
+    const closeBtn2 = document.getElementById('close-ios-modal-btn');
+
+    if (!modal) return;
+
+    const showModal = () => modal.classList.remove('hide');
+    const hideModal = () => modal.classList.add('hide');
+
+    if (openBtn) {
+        openBtn.addEventListener('click', showModal);
+    }
+    if (closeBtn) {
+        closeBtn.addEventListener('click', hideModal);
+    }
+    if (closeBtn2) {
+        closeBtn2.addEventListener('click', hideModal);
+    }
+    
+    // Close modal if user clicks on the backdrop
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            hideModal();
+        }
+    });
+}
+
+function setupProfileEdit() {
+    const editBtn = document.getElementById('profile-edit-btn');
+    const cancelBtn = document.getElementById('profile-edit-cancel-btn');
+    const viewMode = document.getElementById('profile-view-mode');
+    const editMode = document.getElementById('profile-edit-mode');
+    const form = document.getElementById('profile-edit-form');
+    const errorBox = document.getElementById('profile-edit-error');
+    const successBox = document.getElementById('profile-edit-success');
+    
+    if (!editBtn || !cancelBtn || !viewMode || !editMode || !form) return;
+    
+    editBtn.addEventListener('click', () => {
+        if (!state.user) return;
+        document.getElementById('profile-edit-firstname-input').value = state.user.first_name || '';
+        document.getElementById('profile-edit-lastname-input').value = state.user.last_name || '';
+        if (errorBox) errorBox.classList.add('hide');
+        if (successBox) successBox.classList.add('hide');
+        
+        viewMode.classList.add('hide');
+        editMode.classList.remove('hide');
+    });
+    
+    cancelBtn.addEventListener('click', () => {
+        viewMode.classList.remove('hide');
+        editMode.classList.add('hide');
+    });
+    
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (errorBox) errorBox.classList.add('hide');
+        if (successBox) successBox.classList.add('hide');
+        
+        const firstName = document.getElementById('profile-edit-firstname-input').value.trim();
+        const lastName = document.getElementById('profile-edit-lastname-input').value.trim();
+        
+        if (!firstName || !lastName) {
+            if (errorBox) {
+                errorBox.textContent = "Ism va familiya bo'sh bo'lishi mumkin emas";
+                errorBox.classList.remove('hide');
+            }
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('first_name', firstName);
+        formData.append('last_name', lastName);
+        
+        try {
+            const response = await fetch(`${API_BASE}/api/user/profile`, {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${state.token}` },
+                body: formData
+            });
+            
+            const result = await response.json();
+            if (response.ok && result.status === 'success') {
+                state.user = result.user;
+                localStorage.setItem('cardio_user', JSON.stringify(result.user));
+                
+                // Update views
+                loadUserProfile();
+                
+                if (successBox) {
+                    successBox.textContent = "Profil muvaffaqiyatli yangilandi";
+                    successBox.classList.remove('hide');
+                }
+                
+                setTimeout(() => {
+                    viewMode.classList.remove('hide');
+                    editMode.classList.add('hide');
+                }, 1000);
+            } else {
+                if (errorBox) {
+                    errorBox.textContent = result.detail || "Profilni yangilashda xatolik yuz berdi";
+                    errorBox.classList.remove('hide');
+                }
+            }
+        } catch (err) {
+            console.error(err);
+            if (errorBox) {
+                errorBox.textContent = "Serverga ulanish imkoni bo'lmadi";
+                errorBox.classList.remove('hide');
+            }
+        }
+    });
+}
+
 
 

@@ -650,6 +650,55 @@ def get_recent_analyses(db: Session = Depends(get_db)):
             })
     return out
 
+# User Verification Dependency
+def get_current_user(authorization: str = Header(None), db: Session = Depends(get_db)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Avtorizatsiya tokeni talab qilinadi")
+        
+    token = authorization.split(" ")[1]
+    parts = token.split("_")
+    if len(parts) < 2 or parts[0] != "token":
+        raise HTTPException(status_code=401, detail="Noto'g'ri avtorizatsiya tokeni")
+        
+    try:
+        user_id = int(parts[1])
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Noto'g'ri avtorizatsiya tokeni")
+        
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="Foydalanuvchi topilmadi")
+        
+    return user
+
+# User Profile Update Endpoint
+@app.put("/api/user/profile")
+def update_user_profile(
+    first_name: str = Form(...),
+    last_name: str = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    current_user.first_name = first_name
+    current_user.last_name = last_name
+    db.commit()
+    db.refresh(current_user)
+    return {
+        "status": "success",
+        "message": "Profil muvaffaqiyatli yangilandi",
+        "user": {
+            "phone": current_user.phone,
+            "region": current_user.region,
+            "district": current_user.district or "",
+            "village": current_user.village or "",
+            "street": current_user.street or "",
+            "first_name": current_user.first_name or "",
+            "last_name": current_user.last_name or "",
+            "birth_date": current_user.birth_date or "",
+            "is_admin": current_user.is_admin or 0
+        }
+    }
+
 # Admin Role Verification Dependency
 def get_current_admin(authorization: str = Header(None), db: Session = Depends(get_db)):
     if not authorization or not authorization.startswith("Bearer "):
