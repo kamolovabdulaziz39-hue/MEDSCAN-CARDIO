@@ -386,6 +386,9 @@ async function loadUserProfile() {
     document.getElementById('profile-last-name').textContent = state.user.last_name || '';
     document.getElementById('profile-phone').textContent = state.user.phone || '';
     document.getElementById('profile-region').textContent = state.user.region || '';
+    document.getElementById('profile-district').textContent = state.user.district || '';
+    document.getElementById('profile-village').textContent = state.user.village || '';
+    document.getElementById('profile-street').textContent = state.user.street || '';
     document.getElementById('profile-birthdate').textContent = state.user.birth_date || '';
 }
 
@@ -2213,6 +2216,12 @@ function setupProfileEdit() {
         if (!state.user) return;
         document.getElementById('profile-edit-firstname-input').value = state.user.first_name || '';
         document.getElementById('profile-edit-lastname-input').value = state.user.last_name || '';
+        document.getElementById('profile-edit-phone-input').value = state.user.phone || '';
+        document.getElementById('profile-edit-region-input').value = state.user.region || '';
+        document.getElementById('profile-edit-district-input').value = state.user.district || '';
+        document.getElementById('profile-edit-village-input').value = state.user.village || '';
+        document.getElementById('profile-edit-street-input').value = state.user.street || '';
+        document.getElementById('profile-edit-birthdate-input').value = state.user.birth_date || '';
         if (errorBox) errorBox.classList.add('hide');
         if (successBox) successBox.classList.add('hide');
         
@@ -2232,10 +2241,16 @@ function setupProfileEdit() {
         
         const firstName = document.getElementById('profile-edit-firstname-input').value.trim();
         const lastName = document.getElementById('profile-edit-lastname-input').value.trim();
+        const phone = document.getElementById('profile-edit-phone-input').value.trim();
+        const region = document.getElementById('profile-edit-region-input').value.trim();
+        const district = document.getElementById('profile-edit-district-input').value.trim();
+        const village = document.getElementById('profile-edit-village-input').value.trim();
+        const street = document.getElementById('profile-edit-street-input').value.trim();
+        const birthDate = document.getElementById('profile-edit-birthdate-input').value;
         
-        if (!firstName || !lastName) {
+        if (!firstName || !lastName || !phone || !region) {
             if (errorBox) {
-                errorBox.textContent = "Ism va familiya bo'sh bo'lishi mumkin emas";
+                errorBox.textContent = "Ism, familiya, telefon va viloyat bo'sh bo'lishi mumkin emas";
                 errorBox.classList.remove('hide');
             }
             return;
@@ -2244,6 +2259,12 @@ function setupProfileEdit() {
         const formData = new FormData();
         formData.append('first_name', firstName);
         formData.append('last_name', lastName);
+        formData.append('phone', phone);
+        formData.append('region', region);
+        formData.append('district', district);
+        formData.append('village', village);
+        formData.append('street', street);
+        formData.append('birth_date', birthDate);
         
         try {
             const response = await fetch(`${API_BASE}/api/user/profile`, {
@@ -2259,6 +2280,12 @@ function setupProfileEdit() {
                 
                 // Update views
                 loadUserProfile();
+                
+                // Update sidebar displays
+                const userPhoneEl = document.getElementById('user-phone');
+                const userRegionEl = document.getElementById('user-region');
+                if (userPhoneEl) userPhoneEl.textContent = result.user.phone;
+                if (userRegionEl) userRegionEl.textContent = result.user.region;
                 
                 if (successBox) {
                     successBox.textContent = "Profil muvaffaqiyatli yangilandi";

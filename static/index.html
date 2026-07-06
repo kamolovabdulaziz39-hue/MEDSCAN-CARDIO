@@ -179,7 +179,10 @@
                         <p><strong>Ism:</strong> <span id="profile-first-name"></span></p>
                         <p><strong>Familiya:</strong> <span id="profile-last-name"></span></p>
                         <p><strong>Telefon:</strong> <span id="profile-phone"></span></p>
-                        <p><strong>Hudud:</strong> <span id="profile-region"></span></p>
+                        <p><strong>Viloyat:</strong> <span id="profile-region"></span></p>
+                        <p><strong>Tuman / Shahar:</strong> <span id="profile-district"></span></p>
+                        <p><strong>Mahalla / Qishloq:</strong> <span id="profile-village"></span></p>
+                        <p><strong>Ko'cha:</strong> <span id="profile-street"></span></p>
                         <p><strong>Tug'ilgan sana:</strong> <span id="profile-birthdate"></span></p>
                         <button id="profile-edit-btn" class="btn btn-secondary" style="margin-top: 15px;"><i class="fa-solid fa-user-pen"></i> Tahrirlash</button>
                     </div>
@@ -192,6 +195,30 @@
                             <div class="input-group" style="margin-bottom: 0;">
                                 <label for="profile-edit-lastname-input"><i class="fa-solid fa-user"></i> Familiya</label>
                                 <input type="text" id="profile-edit-lastname-input" required>
+                            </div>
+                            <div class="input-group" style="margin-bottom: 0;">
+                                <label for="profile-edit-phone-input"><i class="fa-solid fa-phone"></i> Telefon</label>
+                                <input type="text" id="profile-edit-phone-input" required>
+                            </div>
+                            <div class="input-group" style="margin-bottom: 0;">
+                                <label for="profile-edit-region-input"><i class="fa-solid fa-map-location-dot"></i> Viloyat / Hudud</label>
+                                <input type="text" id="profile-edit-region-input" required>
+                            </div>
+                            <div class="input-group" style="margin-bottom: 0;">
+                                <label for="profile-edit-district-input"><i class="fa-solid fa-location-crosshairs"></i> Tuman / Shahar</label>
+                                <input type="text" id="profile-edit-district-input">
+                            </div>
+                            <div class="input-group" style="margin-bottom: 0;">
+                                <label for="profile-edit-village-input"><i class="fa-solid fa-house-chimney"></i> Mahalla / Qishloq</label>
+                                <input type="text" id="profile-edit-village-input">
+                            </div>
+                            <div class="input-group" style="margin-bottom: 0;">
+                                <label for="profile-edit-street-input"><i class="fa-solid fa-road"></i> Ko'cha</label>
+                                <input type="text" id="profile-edit-street-input">
+                            </div>
+                            <div class="input-group" style="margin-bottom: 0;">
+                                <label for="profile-edit-birthdate-input"><i class="fa-solid fa-calendar-days"></i> Tug'ilgan sana (YYYY-MM-DD)</label>
+                                <input type="date" id="profile-edit-birthdate-input">
                             </div>
                             <div id="profile-edit-error" class="error-msg hide" style="margin-bottom: 0;"></div>
                             <div id="profile-edit-success" class="success-msg hide" style="color: var(--neon-green); font-size: 0.9rem; margin-top: 5px;"></div>

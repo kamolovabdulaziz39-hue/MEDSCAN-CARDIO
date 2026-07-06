@@ -676,11 +676,30 @@ def get_current_user(authorization: str = Header(None), db: Session = Depends(ge
 def update_user_profile(
     first_name: str = Form(...),
     last_name: str = Form(...),
+    phone: str = Form(...),
+    region: str = Form(...),
+    district: str = Form(None),
+    village: str = Form(None),
+    street: str = Form(None),
+    birth_date: str = Form(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    # Check phone conflict
+    if phone != current_user.phone:
+        existing_user = db.query(User).filter(User.phone == phone).first()
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Ushbu telefon raqami band / Этот номер телефона занят")
+        current_user.phone = phone
+        
     current_user.first_name = first_name
     current_user.last_name = last_name
+    current_user.region = region
+    current_user.district = district
+    current_user.village = village
+    current_user.street = street
+    current_user.birth_date = birth_date
+    
     db.commit()
     db.refresh(current_user)
     return {
