@@ -1092,11 +1092,11 @@ function setupPDFButtons(analysisId) {
     btnRu.parentNode.replaceChild(newBtnRu, btnRu);
     
     newBtnUz.addEventListener('click', () => {
-        window.location.href = `${API_BASE}/api/ecg/protocol/${analysisId}/uz`;
+        window.open(`${API_BASE}/api/ecg/protocol/${analysisId}/uz`, '_blank');
     });
     
     newBtnRu.addEventListener('click', () => {
-        window.location.href = `${API_BASE}/api/ecg/protocol/${analysisId}/ru`;
+        window.open(`${API_BASE}/api/ecg/protocol/${analysisId}/ru`, '_blank');
     });
 }
 

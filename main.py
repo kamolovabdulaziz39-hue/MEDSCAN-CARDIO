@@ -520,7 +520,7 @@ def get_protocol_pdf(analysis_id: int, lang: str, db: Session = Depends(get_db))
     return StreamingResponse(
         pdf_output,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename={filename_prefix}_{patient.id}_{lang}.pdf"}
+        headers={"Content-Disposition": f"inline; filename={filename_prefix}_{patient.id}_{lang}.pdf"}
     )
 
 # Dashboard Stats Endpoint for President / Government
