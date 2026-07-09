@@ -366,19 +366,42 @@ def get_protocol_pdf(analysis_id: int, lang: str, db: Session = Depends(get_db))
     pdf = FPDF()
     pdf.add_page()
     
-    # Load Windows system font to support Cyrillic / Uzbek special characters
-    font_path_regular = r"C:\Windows\Fonts\arial.ttf"
-    font_path_bold = r"C:\Windows\Fonts\arialbd.ttf"
+    # Load fonts from project fonts directory to support Cyrillic / Uzbek special characters
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    font_path_regular = os.path.join(base_dir, "fonts", "arial.ttf")
+    font_path_bold = os.path.join(base_dir, "fonts", "arialbd.ttf")
+    font_path_italic = os.path.join(base_dir, "fonts", "ariali.ttf")
+    font_path_bold_italic = os.path.join(base_dir, "fonts", "arialbi.ttf")
     
+    use_custom_font = False
     if os.path.exists(font_path_regular):
-        pdf.add_font("Arial", "", font_path_regular)
-    else:
-        pdf.add_font("Arial", "", "") # Fallback
-        
-    if os.path.exists(font_path_bold):
-        pdf.add_font("Arial", "B", font_path_bold)
-        
-    pdf.set_font("Arial", "B", 16)
+        try:
+            pdf.add_font("Arial", "", font_path_regular)
+            use_custom_font = True
+        except Exception as e:
+            print(f"Error loading regular font: {e}")
+            
+    if use_custom_font and os.path.exists(font_path_bold):
+        try:
+            pdf.add_font("Arial", "B", font_path_bold)
+        except Exception as e:
+            print(f"Error loading bold font: {e}")
+            
+    if use_custom_font and os.path.exists(font_path_italic):
+        try:
+            pdf.add_font("Arial", "I", font_path_italic)
+        except Exception as e:
+            print(f"Error loading italic font: {e}")
+            
+    if use_custom_font and os.path.exists(font_path_bold_italic):
+        try:
+            pdf.add_font("Arial", "BI", font_path_bold_italic)
+        except Exception as e:
+            print(f"Error loading bold italic font: {e}")
+            
+    font_name = "Arial" if use_custom_font else "Helvetica"
+    
+    pdf.set_font(font_name, "B", 16)
     
     # Title
     if lang == "uz":
@@ -430,15 +453,15 @@ def get_protocol_pdf(analysis_id: int, lang: str, db: Session = Depends(get_db))
         recs = details.get('first_aid_ru', ["Рекомендуется консультация кардиолога."])
         
     pdf.cell(0, 10, title, ln=True, align="C")
-    pdf.set_font("Arial", "", 10)
+    pdf.set_font(font_name, "", 10)
     pdf.cell(0, 10, f"Sana: {analysis.created_at.strftime('%Y-%m-%d %H:%M:%S')}", ln=True, align="R")
     pdf.line(10, 30, 200, 30)
     pdf.ln(5)
     
     # Cardio ID & Patient Header
-    pdf.set_font("Arial", "B", 12)
+    pdf.set_font(font_name, "B", 12)
     pdf.cell(0, 10, f"{lbl_patient} ({meta_id})", ln=1)
-    pdf.set_font("Arial", "", 11)
+    pdf.set_font(font_name, "", 11)
     pdf.cell(0, 8, lbl_fullname, ln=1)
     pdf.cell(0, 8, f"{lbl_age}  |  {lbl_gender}", ln=1)
     pdf.cell(0, 8, lbl_phone, ln=1)
@@ -449,9 +472,9 @@ def get_protocol_pdf(analysis_id: int, lang: str, db: Session = Depends(get_db))
     pdf.ln(5)
     
     # ECG Analysis Header
-    pdf.set_font("Arial", "B", 12)
+    pdf.set_font(font_name, "B", 12)
     pdf.cell(0, 10, lbl_findings, ln=1)
-    pdf.set_font("Arial", "", 11)
+    pdf.set_font(font_name, "", 11)
     pdf.cell(0, 8, lbl_st, ln=1)
     pdf.cell(0, 8, lbl_t, ln=1)
     pdf.cell(0, 8, lbl_q, ln=1)
@@ -459,24 +482,24 @@ def get_protocol_pdf(analysis_id: int, lang: str, db: Session = Depends(get_db))
     pdf.ln(5)
     
     # Final Result
-    pdf.set_font("Arial", "B", 12)
+    pdf.set_font(font_name, "B", 12)
     if analysis.classification == "ACUTE_INFARCTION":
         pdf.set_text_color(220, 50, 50) # Red for infarction
     else:
         pdf.set_text_color(0, 100, 0) # Green for others
     pdf.cell(0, 10, lbl_result, ln=1)
-    pdf.set_font("Arial", "B", 11)
+    pdf.set_font(font_name, "B", 11)
     pdf.cell(0, 8, lbl_class, ln=1)
     pdf.set_text_color(0, 0, 0)
-    pdf.set_font("Arial", "", 11)
+    pdf.set_font(font_name, "", 11)
     pdf.set_x(10)
     pdf.multi_cell(190, 8, lbl_comment)
     pdf.ln(5)
     
     # First Aid / Recommendations
-    pdf.set_font("Arial", "B", 12)
+    pdf.set_font(font_name, "B", 12)
     pdf.cell(0, 10, lbl_rec, ln=1)
-    pdf.set_font("Arial", "", 11)
+    pdf.set_font(font_name, "", 11)
     for idx, r in enumerate(recs):
         pdf.set_x(10)
         pdf.multi_cell(190, 8, f"{idx+1}. {r}")
@@ -484,7 +507,7 @@ def get_protocol_pdf(analysis_id: int, lang: str, db: Session = Depends(get_db))
     pdf.ln(10)
     pdf.line(10, pdf.get_y(), 200, pdf.get_y())
     pdf.ln(5)
-    pdf.set_font("Arial", "I", 9)
+    pdf.set_font(font_name, "I", 9)
     pdf.cell(0, 5, "Ushbu hujjat 'MEDSCAN CARDIO' tizimi tomonidan avtomatik ravishda shakllantirilgan va elektron imzolangan.", ln=1, align="C")
     
     # Save PDF to Buffer and return
