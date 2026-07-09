@@ -435,11 +435,15 @@ body {
 .section-title {
     margin-bottom: 20px;
 }
-
-.table-container {
+.table-responsive {
+    width: 100%;
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
+.table-responsive .data-table {
+    white-space: nowrap;
+}
 .data-table {
     width: 100%;
     border-collapse: collapse;
