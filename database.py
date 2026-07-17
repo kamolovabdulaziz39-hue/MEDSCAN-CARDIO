@@ -33,6 +33,33 @@ TrapSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=trap_eng
 Base = declarative_base()
 
 
+class Clinic(Base):
+    __tablename__ = "clinics"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True)
+    inn = Column(String, nullable=True, index=True)          # INN (ИНН) клиники
+    status = Column(String, default="active")               # 'active', 'blocked'
+    payment_status = Column(String, default="paid")         # 'paid', 'unpaid'
+    scan_limit = Column(Integer, default=500)               # Лимит сканирований в месяц
+    contact_phone = Column(String, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.datetime.utcnow() + datetime.timedelta(hours=5))
+
+class ClinicApplication(Base):
+    """Заявки на подключение клиник (onboarding). Статус: pending -> active после одобрения SuperAdmin."""
+    __tablename__ = "clinic_applications"
+    id = Column(Integer, primary_key=True, index=True)
+    clinic_name = Column(String, nullable=False)
+    inn = Column(String, nullable=False)
+    contact_person = Column(String, nullable=True)        # ФИО ответственного лица
+    contact_phone = Column(String, nullable=False)
+    contact_email = Column(String, nullable=True)
+    address = Column(String, nullable=True)
+    comment = Column(Text, nullable=True)                  # Дополнительная информация
+    status = Column(String, default="pending")             # 'pending', 'active', 'rejected'
+    clinic_id = Column(Integer, ForeignKey("clinics.id"), nullable=True)  # Заполняется после одобрения
+    created_at = Column(DateTime, default=lambda: datetime.datetime.utcnow() + datetime.timedelta(hours=5))
+    reviewed_at = Column(DateTime, nullable=True)          # Дата решения SuperAdmin
+
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
@@ -46,6 +73,8 @@ class User(Base):
     last_name = Column(String, nullable=True)
     birth_date = Column(String, nullable=True)  # YYYY-MM-DD format
     is_admin = Column(Integer, default=0)
+    role = Column(String, default="doctor")  # 'superadmin', 'clinicadmin', 'doctor'
+    clinic_id = Column(Integer, ForeignKey("clinics.id"), index=True, nullable=True)
 
 def get_uzbekistan_time():
     return datetime.datetime.utcnow() + datetime.timedelta(hours=5)
@@ -63,6 +92,7 @@ class Patient(Base):
     village = Column(String, nullable=True)
     street = Column(String, nullable=True)
     created_at = Column(DateTime, default=get_uzbekistan_time)
+    clinic_id = Column(Integer, ForeignKey("clinics.id"), index=True, nullable=True)
 
 class ECGAnalysis(Base):
     __tablename__ = "ecg_analyses"
@@ -76,6 +106,7 @@ class ECGAnalysis(Base):
     classification = Column(String)  # NORMAL, ARRHYTHMIA, ISCHEMIA, ACUTE_INFARCTION
     details = Column(Text)  # JSON details of ECG findings
     created_at = Column(DateTime, default=get_uzbekistan_time)
+    clinic_id = Column(Integer, ForeignKey("clinics.id"), index=True, nullable=True)
 
 class BlockedIP(Base):
     __tablename__ = "blocked_ips"
@@ -297,14 +328,126 @@ def seed_trap_db():
     finally:
         db.close()
 
+def migrate_db_schema(db_file):
+    import sqlite3
+    import os
+    if not os.path.exists(db_file):
+        return
+    try:
+        conn = sqlite3.connect(db_file)
+        cursor = conn.cursor()
+        
+        # 1. Check if clinics table exists
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='clinics'")
+        if not cursor.fetchone():
+            cursor.execute("""
+                CREATE TABLE clinics (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    status TEXT DEFAULT 'active',
+                    payment_status TEXT DEFAULT 'paid',
+                    contact_phone TEXT,
+                    created_at DATETIME
+                )
+            """)
+            # Create default clinic
+            cursor.execute("INSERT INTO clinics (name, status, payment_status, contact_phone, created_at) VALUES ('Bosh Markaz', 'active', 'paid', '+998945651539', datetime('now'))")
+            print(f"Created clinics table and default clinic in {db_file}.")
+        
+        # 2. Migrate users table
+        cursor.execute("PRAGMA table_info(users)")
+        existing_user_cols = [col[1] for col in cursor.fetchall()]
+        user_new_cols = {
+            "district": "TEXT",
+            "village": "TEXT",
+            "street": "TEXT",
+            "is_admin": "INTEGER DEFAULT 0",
+            "role": "TEXT DEFAULT 'doctor'",
+            "clinic_id": "INTEGER REFERENCES clinics(id)"
+        }
+        for col_name, col_type in user_new_cols.items():
+            if col_name not in existing_user_cols:
+                cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}")
+                print(f"Added column {col_name} to users table via migration in {db_file}.")
+                
+        # 3. Migrate patients table
+        cursor.execute("PRAGMA table_info(patients)")
+        existing_patient_cols = [col[1] for col in cursor.fetchall()]
+        patient_new_cols = {
+            "region": "TEXT",
+            "district": "TEXT",
+            "village": "TEXT",
+            "street": "TEXT",
+            "clinic_id": "INTEGER REFERENCES clinics(id)"
+        }
+        for col_name, col_type in patient_new_cols.items():
+            if col_name not in existing_patient_cols:
+                cursor.execute(f"ALTER TABLE patients ADD COLUMN {col_name} {col_type}")
+                print(f"Added column {col_name} to patients table via migration in {db_file}.")
+                
+        # 4. Migrate ecg_analyses table
+        cursor.execute("PRAGMA table_info(ecg_analyses)")
+        existing_ecg_cols = [col[1] for col in cursor.fetchall()]
+        if "clinic_id" not in existing_ecg_cols:
+            cursor.execute("ALTER TABLE ecg_analyses ADD COLUMN clinic_id INTEGER REFERENCES clinics(id)")
+            print(f"Added column clinic_id to ecg_analyses table in {db_file}.")
+
+        # 5. Migrate clinics table — add inn and scan_limit if missing
+        cursor.execute("PRAGMA table_info(clinics)")
+        existing_clinic_cols = [col[1] for col in cursor.fetchall()]
+        if "inn" not in existing_clinic_cols:
+            cursor.execute("ALTER TABLE clinics ADD COLUMN inn TEXT")
+            print(f"Added column inn to clinics table in {db_file}.")
+        if "scan_limit" not in existing_clinic_cols:
+            cursor.execute("ALTER TABLE clinics ADD COLUMN scan_limit INTEGER DEFAULT 500")
+            print(f"Added column scan_limit to clinics table in {db_file}.")
+
+        # 6. Create clinic_applications table if not exists
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='clinic_applications'")
+        if not cursor.fetchone():
+            cursor.execute("""
+                CREATE TABLE clinic_applications (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    clinic_name TEXT NOT NULL,
+                    inn TEXT NOT NULL,
+                    contact_person TEXT,
+                    contact_phone TEXT NOT NULL,
+                    contact_email TEXT,
+                    address TEXT,
+                    comment TEXT,
+                    status TEXT DEFAULT 'pending',
+                    clinic_id INTEGER REFERENCES clinics(id),
+                    created_at DATETIME,
+                    reviewed_at DATETIME
+                )
+            """)
+            print(f"Created clinic_applications table in {db_file}.")
+
+        # 7. Populate values
+        cursor.execute("UPDATE users SET role = 'superadmin' WHERE is_admin = 1")
+        cursor.execute("UPDATE users SET role = 'doctor' WHERE role IS NULL")
+        cursor.execute("UPDATE users SET clinic_id = 1 WHERE clinic_id IS NULL AND role != 'superadmin'")
+        cursor.execute("UPDATE patients SET clinic_id = 1 WHERE clinic_id IS NULL")
+        cursor.execute("UPDATE ecg_analyses SET clinic_id = 1 WHERE clinic_id IS NULL")
+        
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Migration error for {db_file}: {e}")
+
 def init_db():
     Base.metadata.create_all(bind=engine)
     # Create tables in DB_TRAP
     Base.metadata.create_all(bind=trap_engine)
+    
+    # Run schema migrations
+    migrate_db_schema("cardio_ai.db")
+    migrate_db_schema("cardio_ai_trap.db")
+    
     # Seed DB_TRAP if empty
     seed_trap_db()
     
-    # SQLite schema migration check
+    # SQLite schema migration check and adjustments for dates
     import sqlite3
     import os
     db_file = "cardio_ai.db"
@@ -312,34 +455,7 @@ def init_db():
         try:
             conn = sqlite3.connect(db_file)
             cursor = conn.cursor()
-            cursor.execute("PRAGMA table_info(users)")
-            existing_columns = [col[1] for col in cursor.fetchall()]
             
-            new_cols = {
-                "district": "TEXT",
-                "village": "TEXT",
-                "street": "TEXT",
-                "is_admin": "INTEGER DEFAULT 0"
-            }
-            for col_name, col_type in new_cols.items():
-                if col_name not in existing_columns:
-                    cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}")
-                    print(f"Added column {col_name} to users table via migration.")
-            
-            # Migrate patients table
-            cursor.execute("PRAGMA table_info(patients)")
-            existing_patient_cols = [col[1] for col in cursor.fetchall()]
-            new_patient_cols = {
-                "region": "TEXT",
-                "district": "TEXT",
-                "village": "TEXT",
-                "street": "TEXT"
-            }
-            for col_name, col_type in new_patient_cols.items():
-                if col_name not in existing_patient_cols:
-                    cursor.execute(f"ALTER TABLE patients ADD COLUMN {col_name} {col_type}")
-                    print(f"Added column {col_name} to patients table via migration.")
-                    
             # Adjust any future-dated records to be in the past relative to Uzbekistan local time
             now_uz = get_uzbekistan_time()
             
@@ -374,11 +490,11 @@ def init_db():
                             cursor.execute("UPDATE patients SET created_at = ? WHERE id = ?", (new_dt_str, p_id))
                     except Exception as e:
                         print(f"Error adjusting date for patient {p_id}: {e}")
-
+ 
             conn.commit()
             conn.close()
         except Exception as migration_error:
-            print(f"Migration error: {migration_error}")
+            print(f"Migration date check error: {migration_error}")
 
     # Ensure uploads directory exists and copy mock_ecg.png there as mock_ecg.jpg
     import shutil

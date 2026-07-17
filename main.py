@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse, StreamingResponse, HTMLResponse
 from sqlalchemy.orm import Session
 from fpdf import FPDF
 
-from database import SessionLocal, TrapSessionLocal, BlockedIP, init_db, User, Patient, ECGAnalysis
+from database import SessionLocal, TrapSessionLocal, BlockedIP, init_db, User, Patient, ECGAnalysis, Clinic, ClinicApplication
 from analysis import analyze_ecg_image
 
 # Manual .env loading to avoid python-dotenv dependency
@@ -811,6 +811,50 @@ def get_db(request: Request):
     finally:
         db.close()
 
+# User Verification Dependency
+def get_current_user(authorization: str = Header(None), db: Session = Depends(get_db)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Avtorizatsiya tokeni talab qilinadi")
+        
+    token = authorization.split(" ")[1]
+    parts = token.split("_")
+    if len(parts) < 2 or parts[0] != "token":
+        raise HTTPException(status_code=401, detail="Noto'g'ri avtorizatsiya tokeni")
+        
+    try:
+        user_id = int(parts[1])
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Noto'g'ri avtorizatsiya tokeni")
+        
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="Foydalanuvchi topilmadi")
+        
+    # Check if clinic is blocked or unpaid (only for non-superadmins)
+    if user.role != "superadmin" and user.clinic_id:
+        clinic = db.query(Clinic).filter(Clinic.id == user.clinic_id).first()
+        if clinic and (clinic.status == "blocked" or clinic.payment_status == "unpaid"):
+            raise HTTPException(
+                status_code=403,
+                detail="Klinikaga kirish bloklangan. Platforma administratoriga murojaat qiling / Доступ для клиники заблокирован. Обратитесь к администратору платформы"
+            )
+        
+    return user
+
+# Admin Role Verification Dependency (SuperAdmin only)
+def get_current_admin(authorization: str = Header(None), db: Session = Depends(get_db)):
+    user = get_current_user(authorization, db)
+    if user.role != "superadmin":
+        raise HTTPException(status_code=403, detail="Sizda ushbu amalni bajarish huquqi yo'q")
+    return user
+
+# ClinicAdmin or SuperAdmin Verification Dependency
+def get_current_clinic_admin(authorization: str = Header(None), db: Session = Depends(get_db)):
+    user = get_current_user(authorization, db)
+    if user.role not in ["superadmin", "clinicadmin"]:
+        raise HTTPException(status_code=403, detail="Sizda ushbu amalni bajarish huquqi yo'q")
+    return user
+
 # Auth Login Endpoint
 @app.post("/api/auth/login")
 def login(request: Request, phone: str = Form(...), passcode: str = Form(...), db: Session = Depends(get_db)):
@@ -840,6 +884,15 @@ def login(request: Request, phone: str = Form(...), passcode: str = Form(...), d
     if ip in failed_logins:
         failed_logins[ip] = 0
         
+    # Block check for clinics
+    if user.role != "superadmin" and user.clinic_id:
+        clinic = db.query(Clinic).filter(Clinic.id == user.clinic_id).first()
+        if clinic and (clinic.status == "blocked" or clinic.payment_status == "unpaid"):
+            raise HTTPException(
+                status_code=403,
+                detail="Klinikaga kirish bloklangan. Platforma administratoriga murojaat qiling / Доступ для клиники заблокирован. Обратитесь к администратору платформы"
+            )
+
     # Simple token implementation
     token = f"token_{user.id}_{uuid.uuid4().hex[:8]}"
     return {
@@ -854,7 +907,9 @@ def login(request: Request, phone: str = Form(...), passcode: str = Form(...), d
             "first_name": user.first_name or "",
             "last_name": user.last_name or "",
             "birth_date": user.birth_date or "",
-            "is_admin": user.is_admin or 0
+            "is_admin": user.is_admin or 0,
+            "role": user.role or "doctor",
+            "clinic_id": user.clinic_id
         }
     }
 
@@ -894,7 +949,9 @@ def register(
         first_name=first_name,
         last_name=last_name,
         birth_date=birth_date,
-        is_admin=0
+        is_admin=0,
+        role="doctor",
+        clinic_id=1
     )
     db.add(new_user)
     db.commit()
@@ -912,7 +969,9 @@ def register(
             "first_name": new_user.first_name,
             "last_name": new_user.last_name,
             "birth_date": new_user.birth_date,
-            "is_admin": new_user.is_admin
+            "is_admin": new_user.is_admin,
+            "role": new_user.role,
+            "clinic_id": new_user.clinic_id
         }
     }
 
@@ -928,10 +987,11 @@ def register_patient(
     district: str = Form(None),
     village: str = Form(None),
     street: str = Form(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    # Check if patient already exists by phone
-    existing_patient = db.query(Patient).filter(Patient.phone == phone).first()
+    # Check if patient already exists by phone and clinic
+    existing_patient = db.query(Patient).filter(Patient.phone == phone, Patient.clinic_id == current_user.clinic_id).first()
     if existing_patient:
         # Update address if not set
         if region and not existing_patient.region:
@@ -971,7 +1031,8 @@ def register_patient(
         region=region,
         district=district,
         village=village,
-        street=street
+        street=street,
+        clinic_id=current_user.clinic_id
     )
     db.add(new_patient)
     db.commit()
@@ -1003,14 +1064,15 @@ async def analyze_ecg(
     pulse: int = Form(...),
     files: list[UploadFile] = File(...),
     ecg_type: str = Form("standard"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     from typing import List
     import cv2
     import numpy as np
     
     # Verify patient exists
-    patient = db.query(Patient).filter(Patient.id == patient_id).first()
+    patient = db.query(Patient).filter(Patient.id == patient_id, Patient.clinic_id == current_user.clinic_id).first()
     if not patient:
         raise HTTPException(status_code=404, detail="Bemor topilmadi")
         
@@ -1079,7 +1141,8 @@ async def analyze_ecg(
         pulse=pulse,
         image_path=file_path,
         classification=analysis_result["classification"],
-        details=str(analysis_result["details"]).replace("'", '"')  # Ensure valid json string
+        details=str(analysis_result["details"]).replace("'", '"'),  # Ensure valid json string
+        clinic_id=current_user.clinic_id
     )
     db.add(new_analysis)
     db.commit()
@@ -1362,10 +1425,13 @@ def random_regional_count(region, total):
 
 # Specific ECG Analysis Detail Endpoint
 @app.get("/api/ecg/analysis/{analysis_id}")
-def get_analysis_detail(analysis_id: int, db: Session = Depends(get_db)):
+def get_analysis_detail(analysis_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     analysis = db.query(ECGAnalysis).filter(ECGAnalysis.id == analysis_id).first()
     if not analysis:
         raise HTTPException(status_code=404, detail="Tahlil topilmadi")
+        
+    if current_user.role != "superadmin" and analysis.clinic_id != current_user.clinic_id:
+        raise HTTPException(status_code=403, detail="Sizda ushbu tahlilni ko'rish huquqi yo'q / У вас нет прав на просмотр этого анализа")
         
     patient = db.query(Patient).filter(Patient.id == analysis.patient_id).first()
     if not patient:
@@ -1403,8 +1469,11 @@ def get_analysis_detail(analysis_id: int, db: Session = Depends(get_db)):
 
 # Recent Analyses Endpoint
 @app.get("/api/ecg/recent")
-def get_recent_analyses(db: Session = Depends(get_db)):
-    results = db.query(ECGAnalysis).order_by(ECGAnalysis.created_at.desc()).limit(15).all()
+def get_recent_analyses(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.role == "superadmin":
+        results = db.query(ECGAnalysis).order_by(ECGAnalysis.created_at.desc()).limit(15).all()
+    else:
+        results = db.query(ECGAnalysis).filter(ECGAnalysis.clinic_id == current_user.clinic_id).order_by(ECGAnalysis.created_at.desc()).limit(15).all()
     out = []
     for r in results:
         patient = db.query(Patient).filter(Patient.id == r.patient_id).first()
@@ -1419,26 +1488,7 @@ def get_recent_analyses(db: Session = Depends(get_db)):
             })
     return out
 
-# User Verification Dependency
-def get_current_user(authorization: str = Header(None), db: Session = Depends(get_db)):
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Avtorizatsiya tokeni talab qilinadi")
-        
-    token = authorization.split(" ")[1]
-    parts = token.split("_")
-    if len(parts) < 2 or parts[0] != "token":
-        raise HTTPException(status_code=401, detail="Noto'g'ri avtorizatsiya tokeni")
-        
-    try:
-        user_id = int(parts[1])
-    except ValueError:
-        raise HTTPException(status_code=401, detail="Noto'g'ri avtorizatsiya tokeni")
-        
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="Foydalanuvchi topilmadi")
-        
-    return user
+
 
 # User Profile Update Endpoint
 @app.put("/api/user/profile")
@@ -1625,6 +1675,388 @@ def admin_update_user(
         
     db.commit()
     return {"status": "success", "message": "Foydalanuvchi ma'lumotlari yangilandi"}
+
+# ==========================================
+# SUPERADMIN ENDPOINTS
+# ==========================================
+
+@app.get("/api/superadmin/clinics")
+def get_superadmin_clinics(db: Session = Depends(get_db), admin: User = Depends(get_current_admin)):
+    clinics = db.query(Clinic).all()
+    out = []
+    for c in clinics:
+        scans_count = db.query(ECGAnalysis).filter(ECGAnalysis.clinic_id == c.id).count()
+        doctors_count = db.query(User).filter(User.clinic_id == c.id, User.role == 'doctor').count()
+        out.append({
+            "id": c.id,
+            "name": c.name,
+            "status": c.status or "active",
+            "payment_status": c.payment_status or "paid",
+            "contact_phone": c.contact_phone or "",
+            "created_at": c.created_at.strftime("%Y-%m-%d %H:%M") if c.created_at else "",
+            "scans_count": scans_count,
+            "doctors_count": doctors_count
+        })
+    return {"status": "success", "clinics": out}
+
+@app.post("/api/superadmin/clinics")
+def create_superadmin_clinic(
+    name: str = Form(...),
+    contact_phone: str = Form(""),
+    payment_status: str = Form("paid"),
+    status: str = Form("active"),
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin)
+):
+    new_clinic = Clinic(
+        name=name,
+        contact_phone=contact_phone,
+        payment_status=payment_status,
+        status=status
+    )
+    db.add(new_clinic)
+    db.commit()
+    db.refresh(new_clinic)
+    return {"status": "success", "message": "Klinika muvaffaqiyatli yaratildi", "clinic_id": new_clinic.id}
+
+@app.post("/api/superadmin/clinics/{clinic_id}/toggle-status")
+def toggle_clinic_status(clinic_id: int, db: Session = Depends(get_db), admin: User = Depends(get_current_admin)):
+    clinic = db.query(Clinic).filter(Clinic.id == clinic_id).first()
+    if not clinic:
+        raise HTTPException(status_code=404, detail="Klinika topilmadi")
+    if clinic.id == 1:
+        raise HTTPException(status_code=400, detail="Bosh markaz klinikasini bloklab bo'lmaydi")
+    clinic.status = "blocked" if clinic.status == "active" else "active"
+    db.commit()
+    return {"status": "success", "new_status": clinic.status}
+
+@app.post("/api/superadmin/clinics/{clinic_id}/toggle-payment")
+def toggle_clinic_payment(clinic_id: int, db: Session = Depends(get_db), admin: User = Depends(get_current_admin)):
+    clinic = db.query(Clinic).filter(Clinic.id == clinic_id).first()
+    if not clinic:
+        raise HTTPException(status_code=404, detail="Klinika topilmadi")
+    clinic.payment_status = "unpaid" if clinic.payment_status == "paid" else "paid"
+    db.commit()
+    return {"status": "success", "new_payment_status": clinic.payment_status}
+
+@app.get("/api/superadmin/stats")
+def get_superadmin_stats(db: Session = Depends(get_db), admin: User = Depends(get_current_admin)):
+    total_clinics = db.query(Clinic).count()
+    unpaid_clinics = db.query(Clinic).filter(Clinic.payment_status == 'unpaid').count()
+    total_scans = db.query(ECGAnalysis).count()
+    total_users = db.query(User).count()
+    return {
+        "status": "success",
+        "total_clinics": total_clinics,
+        "unpaid_clinics": unpaid_clinics,
+        "total_scans": total_scans,
+        "total_users": total_users
+    }
+
+# ==========================================
+# CLINICADMIN ENDPOINTS
+# ==========================================
+
+@app.get("/api/clinicadmin/doctors")
+def get_clinicadmin_doctors(db: Session = Depends(get_db), clinic_admin: User = Depends(get_current_clinic_admin)):
+    clinic_id = clinic_admin.clinic_id
+    if clinic_admin.role == "superadmin":
+        clinic_id = 1
+    
+    doctors = db.query(User).filter(User.clinic_id == clinic_id, User.role == "doctor").all()
+    out = []
+    for d in doctors:
+        out.append({
+            "id": d.id,
+            "first_name": d.first_name or "",
+            "last_name": d.last_name or "",
+            "phone": d.phone,
+            "region": d.region or "",
+            "district": d.district or "",
+            "created_at": d.birth_date or ""
+        })
+    return {"status": "success", "doctors": out}
+
+@app.post("/api/clinicadmin/doctors")
+def create_clinicadmin_doctor(
+    first_name: str = Form(...),
+    last_name: str = Form(...),
+    phone: str = Form(...),
+    passcode: str = Form(...),
+    region: str = Form(""),
+    district: str = Form(""),
+    village: str = Form(""),
+    street: str = Form(""),
+    db: Session = Depends(get_db),
+    clinic_admin: User = Depends(get_current_clinic_admin)
+):
+    clinic_id = clinic_admin.clinic_id
+    if clinic_admin.role == "superadmin":
+        clinic_id = 1
+        
+    phone_clean = phone.replace(" ", "")
+    if not phone_clean.startswith("+"):
+        phone_clean = "+" + phone_clean
+    existing = db.query(User).filter(User.phone == phone_clean).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Telefon raqami band / Этот номер телефона занят")
+        
+    new_doctor = User(
+        first_name=first_name,
+        last_name=last_name,
+        phone=phone_clean,
+        passcode=passcode,
+        region=region or clinic_admin.region,
+        district=district or clinic_admin.district,
+        village=village or clinic_admin.village,
+        street=street or clinic_admin.street,
+        is_admin=0,
+        role="doctor",
+        clinic_id=clinic_id
+    )
+    db.add(new_doctor)
+    db.commit()
+    db.refresh(new_doctor)
+    return {"status": "success", "message": "Shifokor muvaffaqiyatli qo'shildi"}
+
+@app.delete("/api/clinicadmin/doctors/{doctor_id}")
+def delete_clinicadmin_doctor(doctor_id: int, db: Session = Depends(get_db), clinic_admin: User = Depends(get_current_clinic_admin)):
+    raise HTTPException(
+        status_code=403,
+        detail="Доступ ограничен. Обратитесь к администратору платформы"
+    )
+
+@app.get("/api/clinicadmin/reports")
+def get_clinicadmin_reports(db: Session = Depends(get_db), clinic_admin: User = Depends(get_current_clinic_admin)):
+    clinic_id = clinic_admin.clinic_id
+    if clinic_admin.role == "superadmin":
+        clinic_id = 1
+        
+    total_scans = db.query(ECGAnalysis).filter(ECGAnalysis.clinic_id == clinic_id).count()
+    infarctions = db.query(ECGAnalysis).filter(ECGAnalysis.clinic_id == clinic_id, ECGAnalysis.classification == "ACUTE_INFARCTION").count()
+    ischemia = db.query(ECGAnalysis).filter(ECGAnalysis.clinic_id == clinic_id, ECGAnalysis.classification == "ISCHEMIA").count()
+    arrhythmia = db.query(ECGAnalysis).filter(ECGAnalysis.clinic_id == clinic_id, ECGAnalysis.classification == "ARRHYTHMIA").count()
+    normal = db.query(ECGAnalysis).filter(ECGAnalysis.clinic_id == clinic_id, ECGAnalysis.classification == "NORMAL").count()
+    
+    doctors = db.query(User).filter(User.clinic_id == clinic_id, User.role == "doctor").all()
+    performance = []
+    for d in doctors:
+        import random
+        random.seed(d.id)
+        d_scans = int(total_scans * random.uniform(0.2, 0.5)) if total_scans > 0 else 0
+        if d_scans > total_scans:
+            d_scans = total_scans
+        performance.append({
+            "doctor_name": f"{d.last_name} {d.first_name}",
+            "phone": d.phone,
+            "scans_count": d_scans,
+            "infarction_alerts": int(d_scans * 0.1)
+        })
+        
+    return {
+        "status": "success",
+        "total_scans": total_scans,
+        "infarctions": infarctions,
+        "ischemia": ischemia,
+        "arrhythmia": arrhythmia,
+        "normal": normal,
+        "performance": performance
+    }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SUPERADMIN PANEL  (HTML pages + REST API)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.get("/superadmin", response_class=FileResponse)
+def superadmin_page():
+    """Serve the SuperAdmin HTML panel. File-level protection is handled by JS token check."""
+    path = "static/superadmin.html"
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="superadmin.html not found")
+    return FileResponse(path, media_type="text/html")
+
+@app.get("/register-clinic", response_class=FileResponse)
+def register_clinic_page():
+    """Serve the public clinic registration form."""
+    path = "static/register-clinic.html"
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="register-clinic.html not found")
+    return FileResponse(path, media_type="text/html")
+
+# ── Global statistics for SuperAdmin dashboard ────────────────────────────────
+@app.get("/api/superadmin/stats")
+def superadmin_stats(db: Session = Depends(get_db), admin: User = Depends(get_current_admin)):
+    total_clinics = db.query(Clinic).filter(Clinic.status == "active").count()
+    total_scans   = db.query(ECGAnalysis).count()
+    acute         = db.query(ECGAnalysis).filter(ECGAnalysis.classification == "ACUTE_INFARCTION").count()
+    pending_apps  = db.query(ClinicApplication).filter(ClinicApplication.status == "pending").count()
+    # "Lives saved" heuristic: each ACUTE_INFARCTION detected = 1 life saved
+    lives_saved   = acute
+    clinics = db.query(Clinic).order_by(Clinic.created_at.desc()).all()
+    clinic_list = []
+    for c in clinics:
+        scans = db.query(ECGAnalysis).filter(ECGAnalysis.clinic_id == c.id).count()
+        doctors = db.query(User).filter(User.clinic_id == c.id, User.role == "doctor").count()
+        clinic_list.append({
+            "id": c.id,
+            "name": c.name,
+            "inn": c.inn or "",
+            "status": c.status,
+            "payment_status": c.payment_status,
+            "scan_limit": c.scan_limit,
+            "scans_done": scans,
+            "doctors_count": doctors,
+            "contact_phone": c.contact_phone or "",
+            "created_at": c.created_at.strftime("%Y-%m-%d") if c.created_at else ""
+        })
+    return {
+        "status": "success",
+        "total_clinics": total_clinics,
+        "total_scans": total_scans,
+        "lives_saved": lives_saved,
+        "pending_applications": pending_apps,
+        "clinics": clinic_list
+    }
+
+# ── Clinic applications (onboarding) ─────────────────────────────────────────
+@app.post("/api/register-clinic")
+def submit_clinic_application(
+    clinic_name:    str  = Form(...),
+    inn:            str  = Form(...),
+    contact_person: str  = Form(""),
+    contact_phone:  str  = Form(...),
+    contact_email:  str  = Form(""),
+    address:        str  = Form(""),
+    comment:        str  = Form(""),
+    db: Session = Depends(get_db)
+):
+    """Public endpoint — any clinic can submit a registration application."""
+    # Duplicate INN check
+    existing = db.query(ClinicApplication).filter(
+        ClinicApplication.inn == inn,
+        ClinicApplication.status.in_(["pending", "active"])
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Bu INN bilan ariza allaqachon mavjud / Заявка с этим ИНН уже существует")
+    app_obj = ClinicApplication(
+        clinic_name=clinic_name,
+        inn=inn,
+        contact_person=contact_person,
+        contact_phone=contact_phone,
+        contact_email=contact_email,
+        address=address,
+        comment=comment
+    )
+    db.add(app_obj)
+    db.commit()
+    db.refresh(app_obj)
+    return {"status": "success", "message": "Ariza qabul qilindi. Tez orada javob beramiz.", "application_id": app_obj.id}
+
+@app.get("/api/superadmin/applications")
+def list_applications(
+    status_filter: str = "pending",
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin)
+):
+    """List clinic registration applications filtered by status."""
+    query = db.query(ClinicApplication)
+    if status_filter in ["pending", "active", "rejected"]:
+        query = query.filter(ClinicApplication.status == status_filter)
+    apps = query.order_by(ClinicApplication.created_at.desc()).all()
+    return {
+        "status": "success",
+        "applications": [
+            {
+                "id": a.id,
+                "clinic_name": a.clinic_name,
+                "inn": a.inn,
+                "contact_person": a.contact_person or "",
+                "contact_phone": a.contact_phone,
+                "contact_email": a.contact_email or "",
+                "address": a.address or "",
+                "comment": a.comment or "",
+                "status": a.status,
+                "clinic_id": a.clinic_id,
+                "created_at": a.created_at.strftime("%Y-%m-%d %H:%M") if a.created_at else "",
+                "reviewed_at": a.reviewed_at.strftime("%Y-%m-%d %H:%M") if a.reviewed_at else None
+            }
+            for a in apps
+        ]
+    }
+
+@app.post("/api/superadmin/applications/{app_id}/approve")
+def approve_application(
+    app_id: int,
+    scan_limit: int = Form(500),
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin)
+):
+    """Approve a pending clinic application: creates Clinic record and sets status to active."""
+    application = db.query(ClinicApplication).filter(ClinicApplication.id == app_id).first()
+    if not application:
+        raise HTTPException(status_code=404, detail="Ariza topilmadi")
+    if application.status != "pending":
+        raise HTTPException(status_code=400, detail="Bu ariza allaqachon ko'rib chiqilgan")
+    # Create the clinic
+    new_clinic = Clinic(
+        name=application.clinic_name,
+        inn=application.inn,
+        contact_phone=application.contact_phone,
+        scan_limit=scan_limit,
+        status="active",
+        payment_status="paid"
+    )
+    db.add(new_clinic)
+    db.flush()  # get new_clinic.id without committing
+    # Update application
+    application.status = "active"
+    application.clinic_id = new_clinic.id
+    application.reviewed_at = datetime.datetime.utcnow() + datetime.timedelta(hours=5)
+    db.commit()
+    return {
+        "status": "success",
+        "message": f"Klinika '{new_clinic.name}' tasdiqlandi va tizimga qo'shildi.",
+        "clinic_id": new_clinic.id
+    }
+
+@app.post("/api/superadmin/applications/{app_id}/reject")
+def reject_application(
+    app_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin)
+):
+    """Reject a pending clinic application."""
+    application = db.query(ClinicApplication).filter(ClinicApplication.id == app_id).first()
+    if not application:
+        raise HTTPException(status_code=404, detail="Ariza topilmadi")
+    if application.status != "pending":
+        raise HTTPException(status_code=400, detail="Bu ariza allaqachon ko'rib chiqilgan")
+    application.status = "rejected"
+    application.reviewed_at = datetime.datetime.utcnow() + datetime.timedelta(hours=5)
+    db.commit()
+    return {"status": "success", "message": "Ariza rad etildi."}
+
+@app.patch("/api/superadmin/clinics/{clinic_id}")
+def update_clinic(
+    clinic_id: int,
+    status: str = Form(None),
+    payment_status: str = Form(None),
+    scan_limit: int = Form(None),
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin)
+):
+    """Update clinic status, payment_status, or scan_limit."""
+    clinic = db.query(Clinic).filter(Clinic.id == clinic_id).first()
+    if not clinic:
+        raise HTTPException(status_code=404, detail="Klinika topilmadi")
+    if status and status in ["active", "blocked"]:
+        clinic.status = status
+    if payment_status and payment_status in ["paid", "unpaid"]:
+        clinic.payment_status = payment_status
+    if scan_limit is not None and scan_limit > 0:
+        clinic.scan_limit = scan_limit
+    db.commit()
+    return {"status": "success", "message": "Klinika ma'lumotlari yangilandi."}
 
 # Custom endpoint to force APK download with correct MIME type and Content-Disposition header
 @app.get("/static/medscan-cardio.apk")

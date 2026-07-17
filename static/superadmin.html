@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SuperAdmin – MedScan Cardio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0e1a;--surface:#111827;--surface2:#1a2235;--border:#1e2d45;
+  --accent:#3b82f6;--accent2:#06b6d4;--danger:#ef4444;--success:#10b981;
+  --warning:#f59e0b;--text:#e2e8f0;--muted:#64748b;
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.login-overlay{
+  position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;
+  justify-content:center;z-index:1000;flex-direction:column;gap:24px
+}
+.login-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:20px;
+  padding:48px 40px;max-width:400px;width:90%;text-align:center
+}
+.login-card h2{font-size:1.5rem;font-weight:700;margin-bottom:8px}
+.login-card p{color:var(--muted);font-size:.9rem;margin-bottom:28px}
+.login-card input{
+  width:100%;padding:12px 16px;background:var(--surface2);border:1px solid var(--border);
+  border-radius:10px;color:var(--text);font-size:1rem;margin-bottom:12px;outline:none
+}
+.login-card input:focus{border-color:var(--accent)}
+.btn{
+  width:100%;padding:13px;border:none;border-radius:10px;font-size:1rem;
+  font-weight:600;cursor:pointer;transition:.2s
+}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:#2563eb}
+.err-msg{color:var(--danger);font-size:.85rem;margin-top:8px;display:none}
+
+/* Layout */
+.sidebar{
+  position:fixed;top:0;left:0;width:240px;height:100vh;background:var(--surface);
+  border-right:1px solid var(--border);padding:24px 0;display:flex;flex-direction:column;z-index:100
+}
+.logo{padding:0 24px 24px;border-bottom:1px solid var(--border)}
+.logo h1{font-size:1.1rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.logo p{font-size:.7rem;color:var(--muted);margin-top:2px}
+.nav{flex:1;padding:16px 0}
+.nav-item{
+  display:flex;align-items:center;gap:12px;padding:11px 24px;cursor:pointer;
+  color:var(--muted);transition:.2s;font-size:.9rem;border-left:3px solid transparent
+}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(59,130,246,.08)}
+.nav-item i{width:18px;text-align:center}
+.sidebar-footer{padding:16px 24px;border-top:1px solid var(--border)}
+.user-chip{display:flex;align-items:center;gap:10px}
+.avatar{width:34px;height:34px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem}
+.user-info p{font-size:.85rem;font-weight:600}
+.user-info span{font-size:.75rem;color:var(--muted)}
+
+.main{margin-left:240px;padding:32px;min-height:100vh}
+.page{display:none}
+.page.active{display:block}
+.page-title{font-size:1.6rem;font-weight:800;margin-bottom:24px}
+.page-title span{color:var(--accent)}
+
+/* Stats */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:28px}
+.stat-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:16px;
+  padding:24px;display:flex;align-items:center;gap:16px;transition:.2s
+}
+.stat-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.stat-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0}
+.stat-val{font-size:1.9rem;font-weight:800}
+.stat-label{font-size:.8rem;color:var(--muted);margin-top:2px}
+
+/* Table */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:24px}
+.card-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.card-header h3{font-size:1rem;font-weight:700}
+.badge{padding:4px 10px;border-radius:20px;font-size:.75rem;font-weight:600}
+.badge-pending{background:rgba(245,158,11,.15);color:var(--warning)}
+.badge-active{background:rgba(16,185,129,.15);color:var(--success)}
+.badge-blocked{background:rgba(239,68,68,.15);color:var(--danger)}
+.badge-rejected{background:rgba(100,116,139,.15);color:var(--muted)}
+table{width:100%;border-collapse:collapse}
+th,td{padding:14px 20px;text-align:left;font-size:.875rem;border-bottom:1px solid var(--border)}
+th{color:var(--muted);font-weight:600;font-size:.8rem;text-transform:uppercase;letter-spacing:.04em}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--surface2)}
+.action-btn{
+  padding:6px 14px;border:none;border-radius:8px;cursor:pointer;font-size:.8rem;
+  font-weight:600;transition:.2s;margin-right:4px
+}
+.btn-approve{background:rgba(16,185,129,.15);color:var(--success);border:1px solid rgba(16,185,129,.3)}
+.btn-approve:hover{background:var(--success);color:#fff}
+.btn-reject{background:rgba(239,68,68,.1);color:var(--danger);border:1px solid rgba(239,68,68,.3)}
+.btn-reject:hover{background:var(--danger);color:#fff}
+.btn-block{background:rgba(245,158,11,.1);color:var(--warning);border:1px solid rgba(245,158,11,.3)}
+.btn-block:hover{background:var(--warning);color:#fff}
+.tab-bar{display:flex;gap:8px;padding:16px 20px;border-bottom:1px solid var(--border)}
+.tab{padding:7px 16px;border-radius:8px;cursor:pointer;font-size:.85rem;font-weight:600;border:none;background:transparent;color:var(--muted);transition:.2s}
+.tab.active{background:var(--accent);color:#fff}
+.empty{padding:48px;text-align:center;color:var(--muted)}
+.empty i{font-size:2rem;margin-bottom:12px;display:block}
+
+/* Toast */
+.toast{
+  position:fixed;bottom:28px;right:28px;background:var(--surface2);border:1px solid var(--border);
+  border-radius:12px;padding:14px 20px;font-size:.9rem;opacity:0;transform:translateY(20px);
+  transition:.4s;z-index:999;max-width:320px;pointer-events:none
+}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.ok{border-left:4px solid var(--success)}
+.toast.fail{border-left:4px solid var(--danger)}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);
+  display:flex;align-items:center;justify-content:center;z-index:500;display:none}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:20px;
+  padding:32px;max-width:420px;width:90%}
+.modal h3{font-size:1.1rem;font-weight:700;margin-bottom:16px}
+.modal label{display:block;font-size:.82rem;color:var(--muted);margin-bottom:6px;margin-top:14px}
+.modal input{width:100%;padding:10px 14px;background:var(--bg);border:1px solid var(--border);
+  border-radius:8px;color:var(--text);font-size:.9rem;outline:none}
+.modal input:focus{border-color:var(--accent)}
+.modal-actions{display:flex;gap:10px;margin-top:20px}
+.modal-actions button{flex:1;padding:11px;border-radius:10px;border:none;cursor:pointer;font-weight:600}
+.btn-confirm{background:var(--success);color:#fff}
+.btn-cancel{background:var(--surface2);color:var(--text)}
+</style>
+</head>
+<body>
+
+<!-- Login overlay -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-card">
+    <div style="font-size:2.5rem;margin-bottom:12px">🫀</div>
+    <h2>SuperAdmin панель</h2>
+    <p>MedScan Cardio — платформа управления</p>
+    <input type="tel" id="loginPhone" placeholder="Телефон (+998...)" autocomplete="off">
+    <input type="password" id="loginCode" placeholder="Пароль" autocomplete="off">
+    <button class="btn btn-primary" onclick="doLogin()">Войти</button>
+    <p class="err-msg" id="loginErr">Неверный логин или пароль</p>
+  </div>
+</div>
+
+<!-- Sidebar -->
+<div class="sidebar" id="sidebar" style="display:none">
+  <div class="logo">
+    <h1>🫀 MedScan Cardio</h1>
+    <p>SuperAdmin Console v2.0</p>
+  </div>
+  <nav class="nav">
+    <div class="nav-item active" onclick="showPage('dashboard')"><i class="fa-solid fa-gauge-high"></i> Главная</div>
+    <div class="nav-item" onclick="showPage('clinics')"><i class="fa-solid fa-hospital"></i> Клиники</div>
+    <div class="nav-item" onclick="showPage('applications')"><i class="fa-solid fa-file-circle-check"></i> Заявки <span id="pendingBadge" style="background:var(--warning);color:#000;border-radius:20px;padding:1px 8px;font-size:.72rem;font-weight:700;margin-left:auto"></span></div>
+    <div class="nav-item" onclick="window.location.href='/'"><i class="fa-solid fa-arrow-left"></i> На сайт</div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-chip">
+      <div class="avatar">SA</div>
+      <div class="user-info"><p id="adminName">SuperAdmin</p><span>superadmin</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main" id="mainContent" style="display:none">
+
+  <!-- Dashboard -->
+  <div class="page active" id="page-dashboard">
+    <div class="page-title">Панель управления <span>SuperAdmin</span></div>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(59,130,246,.15);color:var(--accent)"><i class="fa-solid fa-hospital"></i></div>
+        <div><div class="stat-val" id="s-clinics">—</div><div class="stat-label">Активных клиник</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(6,182,212,.15);color:var(--accent2)"><i class="fa-solid fa-heart-pulse"></i></div>
+        <div><div class="stat-val" id="s-scans">—</div><div class="stat-label">Всего анализов</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(16,185,129,.15);color:var(--success)"><i class="fa-solid fa-hand-holding-heart"></i></div>
+        <div><div class="stat-val" id="s-lives">—</div><div class="stat-label">Спасённых жизней</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(245,158,11,.15);color:var(--warning)"><i class="fa-solid fa-clock"></i></div>
+        <div><div class="stat-val" id="s-pending">—</div><div class="stat-label">Новых заявок</div></div>
+      </div>
+    </div>
+
+    <!-- Recent clinics preview -->
+    <div class="card">
+      <div class="card-header"><h3>Последние клиники</h3><button class="action-btn btn-approve" onclick="showPage('clinics')">Все клиники</button></div>
+      <table><thead><tr><th>Название</th><th>ИНН</th><th>Статус</th><th>Анализов</th><th>Создана</th></tr></thead>
+      <tbody id="dashClinicsTbody"><tr><td colspan="5" class="empty"><i class="fa-solid fa-spinner fa-spin"></i>Загрузка...</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <!-- Clinics page -->
+  <div class="page" id="page-clinics">
+    <div class="page-title">Клиники <span>платформы</span></div>
+    <div class="card">
+      <div class="card-header"><h3 id="clinicCount">Все клиники</h3></div>
+      <table><thead><tr><th>#</th><th>Название</th><th>ИНН</th><th>Статус</th><th>Оплата</th><th>Лимит</th><th>Анализов</th><th>Врачей</th><th>Действия</th></tr></thead>
+      <tbody id="clinicsTbody"><tr><td colspan="9" class="empty"><i class="fa-solid fa-spinner fa-spin"></i></td></tr></tbody></table>
+    </div>
+  </div>
+
+  <!-- Applications page -->
+  <div class="page" id="page-applications">
+    <div class="page-title">Заявки <span>клиник</span></div>
+    <div class="card">
+      <div class="tab-bar">
+        <button class="tab active" onclick="loadApps('pending',this)">Ожидают</button>
+        <button class="tab" onclick="loadApps('active',this)">Одобренные</button>
+        <button class="tab" onclick="loadApps('rejected',this)">Отклонённые</button>
+      </div>
+      <table><thead><tr><th>#</th><th>Клиника</th><th>ИНН</th><th>Контакт</th><th>Телефон</th><th>Адрес</th><th>Дата</th><th>Действия</th></tr></thead>
+      <tbody id="appsTbody"><tr><td colspan="8" class="empty"><i class="fa-solid fa-spinner fa-spin"></i></td></tr></tbody></table>
+    </div>
+  </div>
+
+</div>
+
+<!-- Approve modal -->
+<div class="modal-bg" id="approveModal">
+  <div class="modal">
+    <h3>✅ Одобрить заявку</h3>
+    <p style="color:var(--muted);font-size:.85rem">Будет создана новая клиника и выдан уникальный Clinic ID.</p>
+    <label>Лимит сканирований в месяц</label>
+    <input type="number" id="approveLimit" value="500" min="1">
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Отмена</button>
+      <button class="btn-confirm" onclick="confirmApprove()">Одобрить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '';
+let token = localStorage.getItem('sa_token') || '';
+let pendingAppId = null;
+let currentStats = null;
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+async function doLogin() {
+  const phone = document.getElementById('loginPhone').value.trim();
+  const code  = document.getElementById('loginCode').value.trim();
+  const err   = document.getElementById('loginErr');
+  err.style.display = 'none';
+  try {
+    const fd = new FormData();
+    fd.append('phone', phone); fd.append('passcode', code);
+    const r = await fetch(API + '/api/auth/login', {method:'POST', body:fd});
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || 'Ошибка');
+    if (d.user.role !== 'superadmin') throw new Error('Недостаточно прав доступа');
+    token = d.token;
+    localStorage.setItem('sa_token', token);
+    document.getElementById('adminName').textContent = d.user.first_name + ' ' + d.user.last_name;
+    showApp();
+  } catch(e) {
+    err.textContent = e.message;
+    err.style.display = 'block';
+  }
+}
+document.getElementById('loginCode').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+
+function showApp() {
+  document.getElementById('loginOverlay').style.display = 'none';
+  document.getElementById('sidebar').style.display = 'flex';
+  document.getElementById('mainContent').style.display = 'block';
+  loadStats();
+  loadApps('pending', null);
+}
+
+// Check existing token on load
+window.addEventListener('load', () => {
+  if (token) {
+    // Verify token by loading stats
+    fetch(API + '/api/superadmin/stats', {headers:{Authorization:'Bearer '+token}})
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(d => { currentStats = d; showApp(); applyStats(d); })
+      .catch(() => { token = ''; localStorage.removeItem('sa_token'); });
+  }
+});
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  event.currentTarget && event.currentTarget.classList.add('active');
+  if (id === 'dashboard') loadStats();
+  if (id === 'clinics') renderClinics();
+  if (id === 'applications') loadApps('pending', document.querySelector('.tab'));
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const r = await fetch(API + '/api/superadmin/stats', {headers:{Authorization:'Bearer '+token}});
+    const d = await r.json();
+    currentStats = d;
+    applyStats(d);
+  } catch(e) { console.error(e); }
+}
+
+function applyStats(d) {
+  document.getElementById('s-clinics').textContent = d.total_clinics;
+  document.getElementById('s-scans').textContent   = d.total_scans.toLocaleString();
+  document.getElementById('s-lives').textContent   = d.lives_saved;
+  document.getElementById('s-pending').textContent = d.pending_applications;
+  const pb = document.getElementById('pendingBadge');
+  pb.textContent = d.pending_applications > 0 ? d.pending_applications : '';
+
+  // Dashboard table (last 5)
+  const tbody = document.getElementById('dashClinicsTbody');
+  const list = (d.clinics || []).slice(0, 5);
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty"><i class="fa-solid fa-circle-info"></i> Нет клиник</td></tr>'; return; }
+  tbody.innerHTML = list.map(c => `
+    <tr>
+      <td><b>${c.name}</b></td>
+      <td>${c.inn || '—'}</td>
+      <td><span class="badge badge-${c.status === 'active' ? 'active' : 'blocked'}">${c.status === 'active' ? 'Активна' : 'Заблок.'}</span></td>
+      <td>${c.scans_done}</td>
+      <td>${c.created_at}</td>
+    </tr>`).join('');
+}
+
+// ── Clinics table ─────────────────────────────────────────────────────────────
+function renderClinics() {
+  if (!currentStats) { loadStats().then(() => renderClinics()); return; }
+  const list = currentStats.clinics || [];
+  document.getElementById('clinicCount').textContent = `Все клиники (${list.length})`;
+  const tbody = document.getElementById('clinicsTbody');
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="9" class="empty"><i class="fa-solid fa-hospital-slash"></i> Нет клиник</td></tr>'; return; }
+  tbody.innerHTML = list.map(c => `
+    <tr>
+      <td>${c.id}</td>
+      <td><b>${c.name}</b></td>
+      <td style="font-family:monospace;font-size:.8rem">${c.inn || '—'}</td>
+      <td><span class="badge badge-${c.status==='active'?'active':'blocked'}">${c.status==='active'?'Активна':'Заблок.'}</span></td>
+      <td><span class="badge badge-${c.payment_status==='paid'?'active':'blocked'}">${c.payment_status==='paid'?'Оплачено':'Долг'}</span></td>
+      <td>${c.scan_limit}</td>
+      <td>${c.scans_done}</td>
+      <td>${c.doctors_count}</td>
+      <td>
+        ${c.status==='active'
+          ? `<button class="action-btn btn-reject" onclick="toggleClinic(${c.id},'blocked')">Заблок.</button>`
+          : `<button class="action-btn btn-approve" onclick="toggleClinic(${c.id},'active')">Разблок.</button>`}
+      </td>
+    </tr>`).join('');
+}
+
+async function toggleClinic(id, newStatus) {
+  const fd = new FormData(); fd.append('status', newStatus);
+  const r = await fetch(API + '/api/superadmin/clinics/' + id, {method:'PATCH', headers:{Authorization:'Bearer '+token}, body:fd});
+  const d = await r.json();
+  showToast(d.message, r.ok ? 'ok' : 'fail');
+  await loadStats(); renderClinics();
+}
+
+// ── Applications ──────────────────────────────────────────────────────────────
+async function loadApps(statusFilter, btnEl) {
+  if (btnEl) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    btnEl.classList.add('active');
+  }
+  const tbody = document.getElementById('appsTbody');
+  tbody.innerHTML = '<tr><td colspan="8" class="empty"><i class="fa-solid fa-spinner fa-spin"></i></td></tr>';
+  try {
+    const r = await fetch(API + '/api/superadmin/applications?status_filter=' + statusFilter, {headers:{Authorization:'Bearer '+token}});
+    const d = await r.json();
+    const apps = d.applications || [];
+    if (!apps.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty"><i class="fa-solid fa-check-double"></i> Нет заявок</td></tr>'; return; }
+    tbody.innerHTML = apps.map(a => `
+      <tr>
+        <td>${a.id}</td>
+        <td><b>${a.clinic_name}</b></td>
+        <td style="font-family:monospace;font-size:.8rem">${a.inn}</td>
+        <td>${a.contact_person || '—'}</td>
+        <td>${a.contact_phone}</td>
+        <td>${a.address || '—'}</td>
+        <td>${a.created_at}</td>
+        <td>
+          ${a.status==='pending' ? `
+            <button class="action-btn btn-approve" onclick="openApproveModal(${a.id})">✅ Одобрить</button>
+            <button class="action-btn btn-reject" onclick="rejectApp(${a.id})">❌ Отклонить</button>
+          ` : `<span class="badge badge-${a.status==='active'?'active':'rejected'}">${a.status==='active'?'Одобрено':'Отклонено'}</span>`}
+        </td>
+      </tr>`).join('');
+  } catch(e) { tbody.innerHTML = '<tr><td colspan="8" class="empty">Ошибка загрузки</td></tr>'; }
+}
+
+// ── Approve modal ─────────────────────────────────────────────────────────────
+function openApproveModal(appId) {
+  pendingAppId = appId;
+  document.getElementById('approveModal').style.display = 'flex';
+}
+function closeModal() {
+  document.getElementById('approveModal').style.display = 'none';
+  pendingAppId = null;
+}
+async function confirmApprove() {
+  const limit = parseInt(document.getElementById('approveLimit').value) || 500;
+  const fd = new FormData(); fd.append('scan_limit', limit);
+  const r = await fetch(API + '/api/superadmin/applications/' + pendingAppId + '/approve', {method:'POST', headers:{Authorization:'Bearer '+token}, body:fd});
+  const d = await r.json();
+  showToast(d.message, r.ok ? 'ok' : 'fail');
+  closeModal();
+  if (r.ok) { await loadStats(); loadApps('pending', null); }
+}
+async function rejectApp(appId) {
+  if (!confirm('Отклонить заявку?')) return;
+  const r = await fetch(API + '/api/superadmin/applications/' + appId + '/reject', {method:'POST', headers:{Authorization:'Bearer '+token}});
+  const d = await r.json();
+  showToast(d.message, r.ok ? 'ok' : 'fail');
+  if (r.ok) loadApps('pending', null);
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(msg, type='ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast show ' + type;
+  setTimeout(() => t.className = 'toast', 3000);
+}
+</script>
+</body>
+</html>

@@ -262,16 +262,41 @@ function showApp() {
         document.getElementById('nav-new-patient').classList.add('hide');
         document.getElementById('nav-profile').classList.add('hide');
     }
-    // Admin check
+    
+    // Role based navigation check
+    const navSuperAdmin = document.getElementById('nav-superadmin');
+    const mobileNavSuperAdmin = document.getElementById('mobile-nav-superadmin');
+    const navClinicAdmin = document.getElementById('nav-clinicadmin');
+    const mobileNavClinicAdmin = document.getElementById('mobile-nav-clinicadmin');
     const navAdmin = document.getElementById('nav-admin');
     const mobileNavAdmin = document.getElementById('mobile-nav-admin');
-    if (state.user && state.user.is_admin === 1) {
+
+    const role = state.user ? (state.user.role || 'doctor') : 'doctor';
+
+    if (role === 'superadmin') {
+        if (navSuperAdmin) navSuperAdmin.classList.remove('hide');
+        if (mobileNavSuperAdmin) mobileNavSuperAdmin.classList.remove('hide');
+        if (navClinicAdmin) navClinicAdmin.classList.remove('hide');
+        if (mobileNavClinicAdmin) mobileNavClinicAdmin.classList.remove('hide');
         if (navAdmin) navAdmin.classList.remove('hide');
         if (mobileNavAdmin) mobileNavAdmin.classList.remove('hide');
+    } else if (role === 'clinicadmin') {
+        if (navSuperAdmin) navSuperAdmin.classList.add('hide');
+        if (mobileNavSuperAdmin) mobileNavSuperAdmin.classList.add('hide');
+        if (navClinicAdmin) navClinicAdmin.classList.remove('hide');
+        if (mobileNavClinicAdmin) mobileNavClinicAdmin.classList.remove('hide');
+        if (navAdmin) navAdmin.classList.add('hide');
+        if (mobileNavAdmin) mobileNavAdmin.classList.add('hide');
     } else {
+        // doctor
+        if (navSuperAdmin) navSuperAdmin.classList.add('hide');
+        if (mobileNavSuperAdmin) mobileNavSuperAdmin.classList.add('hide');
+        if (navClinicAdmin) navClinicAdmin.classList.add('hide');
+        if (mobileNavClinicAdmin) mobileNavClinicAdmin.classList.add('hide');
         if (navAdmin) navAdmin.classList.add('hide');
         if (mobileNavAdmin) mobileNavAdmin.classList.add('hide');
     }
+
     // Attach acknowledge button handler
     const ackBtn = document.getElementById('acknowledge-project');
     if (ackBtn) {
@@ -361,6 +386,12 @@ function switchView(viewId) {
     } else if (viewId === 'admin-view') {
         pageTitle.textContent = "Admin Boshqaruv Paneli";
         loadAdminStats();
+    } else if (viewId === 'superadmin-view') {
+        pageTitle.textContent = "SuperAdmin Boshqaruv Paneli";
+        loadSuperAdminDashboard();
+    } else if (viewId === 'clinicadmin-view') {
+        pageTitle.textContent = "Clinic Boshqaruv Paneli";
+        loadClinicAdminDashboard();
     }
 }
 
@@ -398,7 +429,9 @@ async function loadRecentPatients() {
     tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center;"><i class="fa-solid fa-spinner fa-spin"></i> Yuklanmoqda...</td></tr>`;
     
     try {
-        const response = await fetch(`${API_BASE}/api/ecg/recent`);
+        const response = await fetch(`${API_BASE}/api/ecg/recent`, {
+            headers: { 'Authorization': `Bearer ${state.token}` }
+        });
         if (response.ok) {
             const data = await response.json();
             state.recentPatients = data; // Cache recent list in state
@@ -461,7 +494,9 @@ async function viewExistingResult(analysisId) {
     // Fetch detailed analysis data from the server
     setTimeout(async () => {
         try {
-            const response = await fetch(`${API_BASE}/api/ecg/analysis/${analysisId}`);
+            const response = await fetch(`${API_BASE}/api/ecg/analysis/${analysisId}`, {
+                headers: { 'Authorization': `Bearer ${state.token}` }
+            });
             if (response.ok) {
                 const result = await response.json();
                 state.currentAnalysisId = analysisId;
@@ -752,6 +787,7 @@ function setupFormSubmission() {
             
             const patResponse = await fetch(`${API_BASE}/api/patients`, {
                 method: 'POST',
+                headers: { 'Authorization': `Bearer ${state.token}` },
                 body: patFormData
             });
             const patResult = await patResponse.json();
@@ -781,6 +817,7 @@ function setupFormSubmission() {
             
             const ecgResponse = await fetch(`${API_BASE}/api/ecg/analyze`, {
                 method: 'POST',
+                headers: { 'Authorization': `Bearer ${state.token}` },
                 body: ecgFormData
             });
             
@@ -2311,6 +2348,242 @@ function setupProfileEdit() {
         }
     });
 }
+
+// ==========================================
+// SUPERADMIN & CLINICADMIN JS CONTROLLER
+// ==========================================
+
+window.showCreateClinicModal = function() {
+    const modal = document.getElementById('create-clinic-modal');
+    if (modal) modal.classList.remove('hide');
+};
+
+window.hideCreateClinicModal = function() {
+    const modal = document.getElementById('create-clinic-modal');
+    if (modal) modal.classList.add('hide');
+};
+
+window.handleCreateClinic = async function(event) {
+    event.preventDefault();
+    const name = document.getElementById('new-clinic-name').value.trim();
+    const phone = document.getElementById('new-clinic-phone').value.trim();
+    const payment = document.getElementById('new-clinic-payment').value;
+    const status = document.getElementById('new-clinic-status').value;
+
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('contact_phone', phone);
+    formData.append('payment_status', payment);
+    formData.append('status', status);
+
+    try {
+        const response = await fetch(`${API_BASE}/api/superadmin/clinics`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${state.token}` },
+            body: formData
+        });
+        const result = await response.json();
+        if (response.ok && result.status === 'success') {
+            alert("Klinika muvaffaqiyatli qo'shildi!");
+            hideCreateClinicModal();
+            document.getElementById('create-clinic-form').reset();
+            loadSuperAdminDashboard();
+        } else {
+            alert(result.detail || "Xatolik yuz berdi");
+        }
+    } catch (err) {
+        console.error(err);
+        alert("Serverga ulanib bo'lmadi");
+    }
+};
+
+window.toggleClinicStatus = async function(clinicId) {
+    try {
+        const response = await fetch(`${API_BASE}/api/superadmin/clinics/${clinicId}/toggle-status`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${state.token}` }
+        });
+        const result = await response.json();
+        if (response.ok && result.status === 'success') {
+            loadSuperAdminDashboard();
+        } else {
+            alert(result.detail || "Xatolik yuz berdi");
+        }
+    } catch (err) {
+        console.error(err);
+        alert("Serverga ulanib bo'lmadi");
+    }
+};
+
+window.toggleClinicPayment = async function(clinicId) {
+    try {
+        const response = await fetch(`${API_BASE}/api/superadmin/clinics/${clinicId}/toggle-payment`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${state.token}` }
+        });
+        const result = await response.json();
+        if (response.ok && result.status === 'success') {
+            loadSuperAdminDashboard();
+        } else {
+            alert(result.detail || "Xatolik yuz berdi");
+        }
+    } catch (err) {
+        console.error(err);
+        alert("Serverga ulanib bo'lmadi");
+    }
+};
+
+window.loadSuperAdminDashboard = async function() {
+    try {
+        const statsRes = await fetch(`${API_BASE}/api/superadmin/stats`, {
+            headers: { 'Authorization': `Bearer ${state.token}` }
+        });
+        const stats = await statsRes.json();
+        if (statsRes.ok) {
+            document.getElementById('super-stat-clinics').textContent = stats.total_clinics;
+            document.getElementById('super-stat-unpaid').textContent = stats.unpaid_clinics;
+            document.getElementById('super-stat-scans').textContent = stats.total_scans;
+            document.getElementById('super-stat-users').textContent = stats.total_users;
+        }
+
+        const clinicsRes = await fetch(`${API_BASE}/api/superadmin/clinics`, {
+            headers: { 'Authorization': `Bearer ${state.token}` }
+        });
+        const clinicsData = await clinicsRes.json();
+        if (clinicsRes.ok && clinicsData.status === 'success') {
+            const tbody = document.getElementById('superadmin-clinics-table-body');
+            tbody.innerHTML = '';
+            clinicsData.clinics.forEach(c => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${c.name}</strong></td>
+                    <td>${c.contact_phone}</td>
+                    <td>
+                        <span class="badge ${c.status === 'active' ? 'badge-success' : 'badge-danger'}">
+                            ${c.status === 'active' ? 'Faol / Active' : 'Bloklangan / Blocked'}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge ${c.payment_status === 'paid' ? 'badge-success' : 'badge-danger'}">
+                            ${c.payment_status === 'paid' ? 'To\'langan / Paid' : 'To\'lanmagan / Unpaid'}
+                        </span>
+                    </td>
+                    <td>${c.doctors_count}</td>
+                    <td>${c.scans_count}</td>
+                    <td style="text-align: center;">
+                        <button class="btn btn-secondary btn-sm" onclick="toggleClinicStatus(${c.id})" style="padding: 4px 8px; margin-right: 5px;">
+                            <i class="fa-solid fa-ban"></i> Blok / Aktiv
+                        </button>
+                        <button class="btn btn-primary btn-sm" onclick="toggleClinicPayment(${c.id})" style="padding: 4px 8px;">
+                            <i class="fa-solid fa-credit-card"></i> To'lov
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    } catch (err) {
+        console.error(err);
+    }
+};
+
+window.loadClinicAdminDashboard = async function() {
+    try {
+        const reportsRes = await fetch(`${API_BASE}/api/clinicadmin/reports`, {
+            headers: { 'Authorization': `Bearer ${state.token}` }
+        });
+        const reports = await reportsRes.json();
+        if (reportsRes.ok && reports.status === 'success') {
+            document.getElementById('clinic-stat-scans').textContent = reports.total_scans;
+            document.getElementById('clinic-stat-infarct').textContent = reports.infarctions;
+            document.getElementById('clinic-stat-ischemia').textContent = reports.ischemia + reports.arrhythmia;
+            document.getElementById('clinic-stat-normal').textContent = reports.normal;
+        }
+
+        const docsRes = await fetch(`${API_BASE}/api/clinicadmin/doctors`, {
+            headers: { 'Authorization': `Bearer ${state.token}` }
+        });
+        const docsData = await docsRes.json();
+        if (docsRes.ok && docsData.status === 'success') {
+            const tbody = document.getElementById('clinicadmin-doctors-table-body');
+            tbody.innerHTML = '';
+            
+            const performanceMap = {};
+            if (reports.performance) {
+                reports.performance.forEach(p => {
+                    performanceMap[p.phone] = p.scans_count;
+                });
+            }
+
+            docsData.doctors.forEach(d => {
+                const tr = document.createElement('tr');
+                const scans = performanceMap[d.phone] || 0;
+                tr.innerHTML = `
+                    <td><strong>${d.last_name} ${d.first_name}</strong></td>
+                    <td>${d.phone}</td>
+                    <td>${scans}</td>
+                    <td style="text-align: center;">
+                        <button class="btn btn-secondary btn-sm" onclick="deleteDoctor(${d.id})" style="padding: 4px 8px; color: var(--danger-color); border-color: var(--danger-color);">
+                            <i class="fa-solid fa-trash-can"></i> O'chirish
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    } catch (err) {
+        console.error(err);
+    }
+};
+
+window.handleClinicAddDoctor = async function(event) {
+    event.preventDefault();
+    const firstName = document.getElementById('doc-first-name').value.trim();
+    const lastName = document.getElementById('doc-last-name').value.trim();
+    const phone = document.getElementById('doc-phone').value.trim();
+    const passcode = document.getElementById('doc-passcode').value.trim();
+
+    const formData = new FormData();
+    formData.append('first_name', firstName);
+    formData.append('last_name', lastName);
+    formData.append('phone', phone);
+    formData.append('passcode', passcode);
+
+    try {
+        const response = await fetch(`${API_BASE}/api/clinicadmin/doctors`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${state.token}` },
+            body: formData
+        });
+        const result = await response.json();
+        if (response.ok && result.status === 'success') {
+            alert("Shifokor muvaffaqiyatli qo'shildi!");
+            document.getElementById('clinic-add-doctor-form').reset();
+            loadClinicAdminDashboard();
+        } else {
+            alert(result.detail || "Xatolik yuz berdi");
+        }
+    } catch (err) {
+        console.error(err);
+        alert("Serverga ulanib bo'lmadi");
+    }
+};
+
+window.deleteDoctor = async function(doctorId) {
+    try {
+        const response = await fetch(`${API_BASE}/api/clinicadmin/doctors/${doctorId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${state.token}` }
+        });
+        const result = await response.json();
+        if (!response.ok) {
+            alert(result.detail || "Xatolik yuz berdi");
+        }
+    } catch (err) {
+        console.error(err);
+        alert("Serverga ulanib bo'lmadi");
+    }
+};
 
 
 

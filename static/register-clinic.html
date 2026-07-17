@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Klinika ro'yxatdan o'tkazish – MedScan Cardio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0a0e1a;--surface:#111827;--border:#1e2d45;--accent:#3b82f6;--accent2:#06b6d4;--success:#10b981;--danger:#ef4444;--text:#e2e8f0;--muted:#64748b}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+
+/* Hero */
+.hero{background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);padding:48px 24px;text-align:center;border-bottom:1px solid var(--border)}
+.hero-logo{font-size:3rem;margin-bottom:12px}
+.hero h1{font-size:2rem;font-weight:800;margin-bottom:8px;background:linear-gradient(135deg,#60a5fa,#22d3ee);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero p{color:var(--muted);max-width:500px;margin:0 auto;line-height:1.6}
+
+/* Benefits */
+.benefits{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;padding:32px 24px;max-width:900px;margin:0 auto}
+.benefit{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;flex:1;min-width:180px;text-align:center}
+.benefit i{font-size:1.5rem;margin-bottom:10px;display:block}
+.benefit h4{font-size:.9rem;font-weight:700;margin-bottom:4px}
+.benefit p{font-size:.8rem;color:var(--muted)}
+
+/* Form */
+.form-wrap{max-width:620px;margin:0 auto;padding:0 24px 60px}
+.form-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:36px}
+.form-card h2{font-size:1.3rem;font-weight:800;margin-bottom:6px}
+.form-card>p{color:var(--muted);font-size:.88rem;margin-bottom:28px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:520px){.form-row{grid-template-columns:1fr}}
+.field{margin-bottom:18px}
+.field label{display:block;font-size:.82rem;font-weight:600;color:var(--muted);margin-bottom:7px}
+.field input,.field textarea,.field select{
+  width:100%;padding:12px 16px;background:var(--bg);border:1px solid var(--border);
+  border-radius:10px;color:var(--text);font-size:.9rem;outline:none;font-family:inherit;resize:vertical
+}
+.field input:focus,.field textarea:focus{border-color:var(--accent)}
+.field textarea{min-height:80px}
+.submit-btn{
+  width:100%;padding:15px;background:var(--accent);color:#fff;border:none;border-radius:12px;
+  font-size:1rem;font-weight:700;cursor:pointer;transition:.2s;margin-top:4px
+}
+.submit-btn:hover{background:#2563eb;transform:translateY(-1px)}
+.submit-btn:disabled{background:var(--muted);cursor:not-allowed;transform:none}
+.note{font-size:.78rem;color:var(--muted);margin-top:10px;text-align:center;line-height:1.5}
+
+/* Success state */
+.success-card{background:var(--surface);border:1px solid rgba(16,185,129,.4);border-radius:20px;
+  padding:48px 32px;text-align:center;display:none}
+.success-card .check{font-size:3rem;margin-bottom:16px}
+.success-card h3{font-size:1.4rem;font-weight:800;color:var(--success);margin-bottom:10px}
+.success-card p{color:var(--muted);max-width:360px;margin:0 auto;line-height:1.6}
+.back-btn{margin-top:24px;padding:12px 28px;background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;color:var(--text);font-weight:600;cursor:pointer;text-decoration:none;
+  display:inline-block;font-size:.9rem;transition:.2s}
+.back-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+.err-box{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:10px;
+  padding:12px 16px;color:var(--danger);font-size:.85rem;margin-top:12px;display:none}
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-logo">🫀</div>
+  <h1>MedScan Cardio'ga ulaning</h1>
+  <p>Sun'iy intellekt yordamida EKG diagnostikasini klinikangizga ulang. Ariza 24 soat ichida ko'rib chiqiladi.</p>
+</div>
+
+<div class="benefits">
+  <div class="benefit"><i class="fa-solid fa-bolt" style="color:#f59e0b"></i><h4>Tezkor tahlil</h4><p>EKG natijasi 30 soniyada</p></div>
+  <div class="benefit"><i class="fa-solid fa-shield-halved" style="color:#3b82f6"></i><h4>Ma'lumot himoyasi</h4><p>Clinic ID izolyatsiyasi</p></div>
+  <div class="benefit"><i class="fa-solid fa-chart-line" style="color:#10b981"></i><h4>Statistika</h4><p>Real-time monitoring</p></div>
+  <div class="benefit"><i class="fa-solid fa-headset" style="color:#06b6d4"></i><h4>Qo'llab-quvvatlash</h4><p>24/7 texnik yordam</p></div>
+</div>
+
+<div class="form-wrap">
+  <!-- Application form -->
+  <div class="form-card" id="formCard">
+    <h2>Klinika arizasi</h2>
+    <p>Barcha maydonlarni to'ldiring. Ariza ko'rib chiqilgandan so'ng siz bilan bog'lanamiz.</p>
+
+    <div class="form-row">
+      <div class="field">
+        <label><i class="fa-solid fa-hospital"></i> Klinika nomi *</label>
+        <input type="text" id="clinic_name" placeholder="Masalan: Shifo Medical Center" required>
+      </div>
+      <div class="field">
+        <label><i class="fa-solid fa-hashtag"></i> INN (ИНН) *</label>
+        <input type="text" id="inn" placeholder="123456789" required>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="field">
+        <label><i class="fa-solid fa-user-tie"></i> Mas'ul shaxs F.I.O</label>
+        <input type="text" id="contact_person" placeholder="Karimov Jasur Aliyevich">
+      </div>
+      <div class="field">
+        <label><i class="fa-solid fa-phone"></i> Telefon raqam *</label>
+        <input type="tel" id="contact_phone" placeholder="+998 90 123 45 67" required>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="field">
+        <label><i class="fa-solid fa-envelope"></i> Email</label>
+        <input type="email" id="contact_email" placeholder="clinic@example.com">
+      </div>
+      <div class="field">
+        <label><i class="fa-solid fa-location-dot"></i> Manzil</label>
+        <input type="text" id="address" placeholder="Toshkent sh., Yunusobod tumani">
+      </div>
+    </div>
+
+    <div class="field">
+      <label><i class="fa-solid fa-comment"></i> Qo'shimcha izoh</label>
+      <textarea id="comment" placeholder="Klinikangiz haqida qo'shimcha ma'lumot..."></textarea>
+    </div>
+
+    <button class="submit-btn" id="submitBtn" onclick="submitForm()">
+      <i class="fa-solid fa-paper-plane"></i> Ariza yuborish
+    </button>
+    <div class="err-box" id="errBox"></div>
+    <p class="note">* belgili maydonlar majburiy. Ariza yuborilgandan so'ng SuperAdmin 24 soat ichida ko'rib chiqadi va klinikangizni tizimga qo'shadi.</p>
+  </div>
+
+  <!-- Success state -->
+  <div class="success-card" id="successCard">
+    <div class="check">✅</div>
+    <h3>Ariza qabul qilindi!</h3>
+    <p>Arizangiz muvaffaqiyatli yuborildi. Administratorimiz tez orada siz bilan bog'lanadi va klinikangizni tizimga qo'shadi.</p>
+    <a href="/" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Bosh sahifaga qaytish</a>
+  </div>
+</div>
+
+<script>
+async function submitForm() {
+  const btn = document.getElementById('submitBtn');
+  const errBox = document.getElementById('errBox');
+  errBox.style.display = 'none';
+
+  const clinic_name   = document.getElementById('clinic_name').value.trim();
+  const inn           = document.getElementById('inn').value.trim();
+  const contact_phone = document.getElementById('contact_phone').value.trim();
+
+  if (!clinic_name || !inn || !contact_phone) {
+    errBox.textContent = 'Iltimos, majburiy maydonlarni (*) to\'ldiring.';
+    errBox.style.display = 'block'; return;
+  }
+  if (inn.length < 9) {
+    errBox.textContent = 'INN kamida 9 raqamdan iborat bo\'lishi kerak.';
+    errBox.style.display = 'block'; return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Yuborilmoqda...';
+
+  const fd = new FormData();
+  fd.append('clinic_name',   clinic_name);
+  fd.append('inn',           inn);
+  fd.append('contact_person', document.getElementById('contact_person').value.trim());
+  fd.append('contact_phone', contact_phone);
+  fd.append('contact_email', document.getElementById('contact_email').value.trim());
+  fd.append('address',       document.getElementById('address').value.trim());
+  fd.append('comment',       document.getElementById('comment').value.trim());
+
+  try {
+    const r = await fetch('/api/register-clinic', {method:'POST', body:fd});
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || 'Xatolik yuz berdi');
+    document.getElementById('formCard').style.display = 'none';
+    document.getElementById('successCard').style.display = 'block';
+  } catch(e) {
+    errBox.textContent = e.message;
+    errBox.style.display = 'block';
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Ariza yuborish';
+  }
+}
+</script>
+</body>
+</html>

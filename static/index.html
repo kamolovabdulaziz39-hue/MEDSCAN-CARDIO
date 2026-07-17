@@ -105,6 +105,8 @@
                 <a href="#" class="nav-item" data-target="dashboard-view"><i class="fa-solid fa-chart-line"></i><span>O'zbekiston Respublikasi Kardiologik Monitoring Portali</span></a>
                 <a href="#" class="nav-item hide" id="nav-profile" data-target="profile-view"><i class="fa-solid fa-id-card"></i><span>Profil</span></a>
                 <a href="#" class="nav-item hide" id="nav-admin" data-target="admin-view"><i class="fa-solid fa-user-shield"></i><span>Admin Panel</span></a>
+                <a href="#" class="nav-item hide" id="nav-superadmin" data-target="superadmin-view"><i class="fa-solid fa-crown"></i><span>SuperAdmin Panel</span></a>
+                <a href="#" class="nav-item hide" id="nav-clinicadmin" data-target="clinicadmin-view"><i class="fa-solid fa-hospital"></i><span>Clinic Panel</span></a>
                 <a href="#" class="nav-item hide" id="install-app-btn"><i class="fa-solid fa-download"></i><span>Ilovani o'rnatish</span></a>
                 <a href="/static/medscan-cardio.apk" class="nav-item" download><i class="fa-brands fa-android" style="color: var(--neon-green);"></i><span>Android APK yuklash</span></a>
             </nav>
@@ -514,6 +516,96 @@
                     </div>
                 </div>
             </div>
+
+            <!-- SUPERADMIN VIEW -->
+            <div id="superadmin-view" class="app-view hide">
+                <div class="stats-overview-grid">
+                    <div class="stat-card"><div class="stat-icon purple"><i class="fa-solid fa-hospital"></i></div><div class="stat-info"><h4 id="super-stat-clinics">0</h4><p>Jami klinikalar</p></div></div>
+                    <div class="stat-card stat-infarction"><div class="stat-icon red"><i class="fa-solid fa-credit-card"></i></div><div class="stat-info"><h4 id="super-stat-unpaid">0</h4><p>To'lanmagan klinikalar</p></div></div>
+                    <div class="stat-card stat-normal"><div class="stat-icon green"><i class="fa-solid fa-heart-pulse"></i></div><div class="stat-info"><h4 id="super-stat-scans">0</h4><p>Jami EKG tahlillari</p></div></div>
+                    <div class="stat-card"><div class="stat-icon yellow"><i class="fa-solid fa-users"></i></div><div class="stat-info"><h4 id="super-stat-users">0</h4><p>Tizim foydalanuvchilari</p></div></div>
+                </div>
+
+                <div class="recent-patients-card" style="margin-top: 30px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 20px;">
+                        <h3><i class="fa-solid fa-hospital-user"></i> Klinikalar boshqaruvi</h3>
+                        <button class="btn btn-primary" onclick="showCreateClinicModal()"><i class="fa-solid fa-plus"></i> Yangi klinika qo'shish</button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Klinika nomi</th>
+                                    <th>Telefon raqami</th>
+                                    <th>Status (Blok)</th>
+                                    <th>To'lov holati</th>
+                                    <th>Shifokorlar soni</th>
+                                    <th>EKG skanlar soni</th>
+                                    <th style="text-align: center; min-width: 180px;">Amallar</th>
+                                </tr>
+                            </thead>
+                            <tbody id="superadmin-clinics-table-body">
+                                <tr><td colspan="7" style="text-align:center">Klinikalar yuklanmoqda...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CLINICADMIN VIEW -->
+            <div id="clinicadmin-view" class="app-view hide">
+                <div class="stats-overview-grid">
+                    <div class="stat-card"><div class="stat-icon purple"><i class="fa-solid fa-heart-pulse"></i></div><div class="stat-info"><h4 id="clinic-stat-scans">0</h4><p>Jami skanlar</p></div></div>
+                    <div class="stat-card stat-infarction"><div class="stat-icon red"><i class="fa-solid fa-circle-exclamation"></i></div><div class="stat-info"><h4 id="clinic-stat-infarct">0</h4><p>O'tkir infarkt holatlari</p></div></div>
+                    <div class="stat-card stat-arrhythmia"><div class="stat-icon yellow"><i class="fa-solid fa-triangle-exclamation"></i></div><div class="stat-info"><h4 id="clinic-stat-ischemia">0</h4><p>Ishemiya / Aritmiya</p></div></div>
+                    <div class="stat-card stat-normal"><div class="stat-icon green"><i class="fa-solid fa-circle-check"></i></div><div class="stat-info"><h4 id="clinic-stat-normal">0</h4><p>Norma holatlari</p></div></div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 30px; margin-top: 30px;" class="clinic-grid-responsive">
+                    <div class="recent-patients-card">
+                        <h3><i class="fa-solid fa-user-doctor"></i> Klinikadagi shifokorlar</h3>
+                        <div class="table-responsive" style="margin-top: 15px;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Shifokor ismi</th>
+                                        <th>Telefon raqami</th>
+                                        <th>Skanlar soni</th>
+                                        <th style="text-align: center;">Amallar</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="clinicadmin-doctors-table-body">
+                                    <tr><td colspan="4" style="text-align:center">Shifokorlar yuklanmoqda...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="recent-patients-card">
+                        <h3><i class="fa-solid fa-plus-minus"></i> Yangi shifokor qo'shish</h3>
+                        <form id="clinic-add-doctor-form" onsubmit="handleClinicAddDoctor(event)" style="margin-top: 15px; display: flex; flex-direction: column; gap: 12px;">
+                            <div class="form-group">
+                                <label>Ismi</label>
+                                <input type="text" id="doc-first-name" required placeholder="Ism..." style="background: #fff; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 10px; width: 100%; outline: none; font-family: inherit;">
+                            </div>
+                            <div class="form-group">
+                                <label>Familiyasi</label>
+                                <input type="text" id="doc-last-name" required placeholder="Familiya..." style="background: #fff; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 10px; width: 100%; outline: none; font-family: inherit;">
+                            </div>
+                            <div class="form-group">
+                                <label>Telefon raqami</label>
+                                <input type="text" id="doc-phone" required placeholder="+998901234567" style="background: #fff; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 10px; width: 100%; outline: none; font-family: inherit;">
+                            </div>
+                            <div class="form-group">
+                                <label>Parol / PIN</label>
+                                <input type="password" id="doc-passcode" required placeholder="Parol..." style="background: #fff; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 10px; width: 100%; outline: none; font-family: inherit;">
+                            </div>
+                            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">Qo'shish</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
         </main>
 
         <!-- Mobile Bottom Navigation -->
@@ -523,6 +615,8 @@
             <a href="#" class="mobile-nav-item" id="mobile-camera-shortcut"><i class="fa-solid fa-camera"></i><span>EKG</span></a>
             <a href="#" class="mobile-nav-item" data-target="dashboard-view"><i class="fa-solid fa-chart-line"></i><span>Statistika</span></a>
             <a href="#" class="mobile-nav-item hide" id="mobile-nav-admin" data-target="admin-view"><i class="fa-solid fa-user-shield"></i><span>Admin</span></a>
+            <a href="#" class="mobile-nav-item hide" id="mobile-nav-superadmin" data-target="superadmin-view"><i class="fa-solid fa-crown"></i><span>Super</span></a>
+            <a href="#" class="mobile-nav-item hide" id="mobile-nav-clinicadmin" data-target="clinicadmin-view"><i class="fa-solid fa-hospital"></i><span>Clinic</span></a>
         </nav>
     </div>
 
@@ -616,6 +710,41 @@
                 </div>
             </div>
             <button type="button" id="close-ios-modal-btn" class="btn btn-primary btn-block" style="margin-top: 25px; background: var(--neon-blue); border: none; box-shadow: var(--shadow-blue);">Tushunarli</button>
+    <!-- SUPERADMIN CREATE CLINIC MODAL -->
+    <div id="create-clinic-modal" class="modal hide" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(8px);">
+        <div class="modal-content" style="background: #FFFFFF; border: 1px solid var(--border-color); padding: 25px; border-radius: 20px; width: 90%; max-width: 450px; box-shadow: 0 15px 30px rgba(0,0,0,0.3); color: var(--text-primary);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0; font-size: 1.2rem; font-weight: 600;"><i class="fa-solid fa-plus-minus"></i> Yangi klinika qo'shish</h3>
+                <button type="button" onclick="hideCreateClinicModal()" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-secondary);"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="create-clinic-form" onsubmit="handleCreateClinic(event)" style="display: flex; flex-direction: column; gap: 15px;">
+                <div>
+                    <label style="font-size: 0.8rem; color: var(--text-secondary);">Klinika nomi</label>
+                    <input type="text" id="new-clinic-name" required placeholder="Masalan: Bosh Markaz" style="background: #fff; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 10px; width: 100%; margin-top: 5px; outline: none; font-family: inherit;">
+                </div>
+                <div>
+                    <label style="font-size: 0.8rem; color: var(--text-secondary);">Telefon raqami</label>
+                    <input type="text" id="new-clinic-phone" required placeholder="+998901234567" style="background: #fff; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 10px; width: 100%; margin-top: 5px; outline: none; font-family: inherit;">
+                </div>
+                <div>
+                    <label style="font-size: 0.8rem; color: var(--text-secondary);">To'lov holati</label>
+                    <select id="new-clinic-payment" style="background: #fff; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 10px; width: 100%; margin-top: 5px; outline: none; font-family: inherit;">
+                        <option value="paid">To'langan (Paid)</option>
+                        <option value="unpaid">To'lanmagan (Unpaid)</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size: 0.8rem; color: var(--text-secondary);">Faollik holati</label>
+                    <select id="new-clinic-status" style="background: #fff; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 10px; width: 100%; margin-top: 5px; outline: none; font-family: inherit;">
+                        <option value="active">Faol (Active)</option>
+                        <option value="blocked">Bloklangan (Blocked)</option>
+                    </select>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
+                    <button type="button" onclick="hideCreateClinicModal()" class="btn btn-secondary" style="padding: 10px 20px;">Bekor qilish</button>
+                    <button type="submit" class="btn btn-primary" style="padding: 10px 20px;">Qo'shish</button>
+                </div>
+            </form>
         </div>
     </div>
 
