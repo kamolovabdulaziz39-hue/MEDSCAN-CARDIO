@@ -505,6 +505,10 @@ def init_db():
     # Seeding mock data if empty
     db = SessionLocal()
     try:
+        # Always ensure is_admin=1 users have role='superadmin' (fix for existing DBs)
+        db.query(User).filter(User.is_admin == 1).update({"role": "superadmin"}, synchronize_session=False)
+        db.commit()
+
         # Check if users already seeded
         if db.query(User).count() == 0:
             # Add a default admin feldsher
@@ -533,8 +537,8 @@ def init_db():
             ]
             for i, reg in enumerate(regions):
                 db.add(User(
-                    phone=f"+99891000000{i+1}",
-                    passcode="1234",
+                    phone=f"+99891000000{i+1}", 
+                    passcode="1234", 
                     region=reg[0],
                     district=reg[1],
                     village=reg[2],
@@ -544,12 +548,8 @@ def init_db():
                     birth_date=f"199{i}-05-1{i}",
                     is_admin=0
                 ))
-
+            
             db.commit()
-
-        # Always ensure is_admin=1 users have role='superadmin' (fixes existing DBs on Render)
-        db.query(User).filter(User.is_admin == 1).update({"role": "superadmin"}, synchronize_session=False)
-        db.commit()
             
             # Seed historic data for June and July 2026 to populate the President Dashboard
             print("Seeding historic ECG data for June and July 2026...")
