@@ -518,10 +518,14 @@ def init_db():
                 first_name="Admin",
                 last_name="Yurak NN",
                 birth_date="1985-02-09",
-                is_admin=1
+                is_admin=1,
+                role="superadmin"
             )
             db.add(default_user)
-            
+
+        # Always ensure is_admin=1 users have role='superadmin' (fix for existing DBs)
+        db.query(User).filter(User.is_admin == 1).update({"role": "superadmin"}, synchronize_session=False)
+        db.commit()
             # Add other regional users/nurses
             regions = [
                 ("Toshkent viloyati", "Parkent tumani", "Krasnogorsk qishlog'i", "Temiryo'l ko'chasi", "Malika", "Karimova"),
