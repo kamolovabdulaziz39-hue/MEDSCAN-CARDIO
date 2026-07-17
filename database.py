@@ -17,7 +17,21 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
     cursor.close()
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+TRAP_DATABASE_URL = os.environ.get("TRAP_DATABASE_URL", "sqlite:///./cardio_ai_trap.db")
+trap_engine = create_engine(TRAP_DATABASE_URL, connect_args={"check_same_thread": False})
+
+@event.listens_for(trap_engine, "connect")
+def set_trap_sqlite_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA synchronous=NORMAL")
+    cursor.close()
+
+TrapSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=trap_engine)
+
 Base = declarative_base()
+
 
 class User(Base):
     __tablename__ = "users"
@@ -62,6 +76,16 @@ class ECGAnalysis(Base):
     classification = Column(String)  # NORMAL, ARRHYTHMIA, ISCHEMIA, ACUTE_INFARCTION
     details = Column(Text)  # JSON details of ECG findings
     created_at = Column(DateTime, default=get_uzbekistan_time)
+
+class BlockedIP(Base):
+    __tablename__ = "blocked_ips"
+    id = Column(Integer, primary_key=True, index=True)
+    ip = Column(String, unique=True, index=True)
+    detected_at = Column(DateTime, default=get_uzbekistan_time)
+    reason = Column(String)
+    last_path = Column(String)
+    city = Column(String, nullable=True)
+    isp = Column(String, nullable=True)
 UZ_LOCATIONS = {
     "Toshkent shahri": {
         "Yunusobod tumani": ["Amir Temur shoh ko'chasi", "Ahmad Donish ko'chasi", "Bog'ishamol ko'chasi", "Yangishahar ko'chasi"],
@@ -127,8 +151,158 @@ UZ_LOCATIONS = {
     }
 }
 
+def seed_trap_db():
+    db = TrapSessionLocal()
+    try:
+        if db.query(Patient).count() > 0:
+            return
+            
+        print("Seeding DB_TRAP with endless garbage (2000+ patients)...")
+        # Seed 2000 patients
+        first_names_m = ["Sardor", "Otabek", "Javohir", "Anvar", "Rustam", "Jasur", "Farhod", "Dilshod", "Alisher", "Sanjar", "Baxodir", "Temur", "Shaxzod", "Diyor"]
+        first_names_f = ["Malika", "Zilola", "Shahnoza", "Madina", "Guli", "Feruza", "Nigora", "Dilnoza", "Sevara", "Lola", "Rayxon", "Kamila", "Aziza", "Shaxlo"]
+        last_names = ["Karimov", "Rahimov", "Sodiqov", "Abduvaliyev", "Usmonov", "Aliyev", "Toshpulatov", "Hasanov", "Nazarov", "Yusupov", "Mirzayev", "Axmedov", "Umarov", "Xalilov"]
+        
+        locations_list = []
+        for reg, dists in UZ_LOCATIONS.items():
+            for dist, streets in dists.items():
+                for str_name in streets:
+                    locations_list.append((reg, dist, str_name))
+                    
+        patients = []
+        for idx in range(1, 2005):
+            gender = "Erkak" if idx % 2 == 0 else "Ayol"
+            first_name = random.choice(first_names_m) if gender == "Erkak" else random.choice(first_names_f)
+            last_name = random.choice(last_names)
+            if gender == "Ayol":
+                if last_name.endswith("ov"): last_name = last_name[:-2] + "ova"
+                elif last_name.endswith("ev"): last_name = last_name[:-2] + "eva"
+                
+            birth_year = random.randint(1940, 2005)
+            phone = f"+99893{random.randint(1000000, 9999999)}"
+            cardio_id = f"CARDIO-{100000 + idx}"
+            
+            reg, dist, str_name = random.choice(locations_list)
+            village = f"{dist.split()[0]} MFY"
+            
+            p = Patient(
+                id=cardio_id,
+                first_name=first_name,
+                last_name=last_name,
+                birth_year=birth_year,
+                gender=gender,
+                phone=phone,
+                region=reg,
+                district=dist,
+                village=village,
+                street=str_name,
+                created_at=datetime.datetime.utcnow() - datetime.timedelta(days=random.randint(1, 30))
+            )
+            patients.append(p)
+            
+        # Bulk save patients
+        for i in range(0, len(patients), 500):
+            db.bulk_save_objects(patients[i:i+500])
+        db.commit()
+        
+        # Seed 2500 ECG analyses
+        analyses = []
+        classifications = ["NORMAL", "ARRHYTHMIA", "ISCHEMIA", "ACUTE_INFARCTION"]
+        symptom_pool = ["ko'krak qafasidagi og'riq", "chap qo'lga og'riq berishi", "nafas qisilishi", "sovuq ter bosishi"]
+        
+        import json
+        for idx in range(1, 2505):
+            patient = patients[idx % len(patients)]
+            classification = random.choice(classifications)
+            
+            symptoms_chosen = random.sample(symptom_pool, random.randint(0, 3))
+            sys_bp = random.randint(100, 190)
+            dia_bp = random.randint(60, 110)
+            pulse = random.randint(50, 140)
+            
+            details_dict = {
+                "st_elevation": f"Elevatsiya {random.randint(0, 5)}mm" if classification == "ACUTE_INFARCTION" else "Yo'q",
+                "t_inversion": "Inversiya" if classification == "ISCHEMIA" else "Yo'q",
+                "q_wave": "Chuqurlashgan" if classification == "ACUTE_INFARCTION" else "Normal",
+                "arrhythmia": "Notekis" if classification == "ARRHYTHMIA" else "Yo'q",
+                "comment_uz": f"TRAP MOCK: Sun'iy tahlil {classification} (Foydasiz ma'lumot).",
+                "comment_ru": f"TRAP MOCK: Ложный анализ {classification} (Бесполезная информация).",
+                "first_aid_uz": ["Uxlashni tavsiya etamiz.", "Ko'proq suv iching."],
+                "first_aid_ru": ["Рекомендуется поспать.", "Пейте больше воды."]
+            }
+            
+            a = ECGAnalysis(
+                patient_id=patient.id,
+                symptoms=";".join(symptoms_chosen),
+                blood_pressure_sys=sys_bp,
+                blood_pressure_dia=dia_bp,
+                pulse=pulse,
+                image_path=f"uploads/garbage_ecg_{idx}.jpg",
+                classification=classification,
+                details=json.dumps(details_dict),
+                created_at=patient.created_at + datetime.timedelta(hours=random.randint(1, 10))
+            )
+            analyses.append(a)
+            
+        for i in range(0, len(analyses), 500):
+            db.bulk_save_objects(analyses[i:i+500])
+            
+        # Seed 100 fake users
+        fake_users = []
+        for idx in range(1, 101):
+            phone = f"+99890{1000000 + idx}"
+            passcode = f"{random.randint(1000, 9999)}"
+            reg, dist, str_name = random.choice(locations_list)
+            village = f"{dist.split()[0]} MFY"
+            first_name = random.choice(first_names_m)
+            last_name = random.choice(last_names)
+            
+            u = User(
+                phone=phone,
+                passcode=passcode,
+                region=reg,
+                district=dist,
+                village=village,
+                street=str_name,
+                first_name=first_name,
+                last_name=last_name,
+                birth_date=f"199{random.randint(0,9)}-02-02",
+                is_admin=0
+            )
+            fake_users.append(u)
+            
+        # Add a fake admin
+        fake_admin = User(
+            phone="+998945651539",
+            passcode="288019701966200120042026",
+            region="Toshkent viloyati",
+            district="Zangiota tumani",
+            village="Zangiota qishlog'i",
+            street="Mustaqillik ko'chasi",
+            first_name="Admin",
+            last_name="Yurak NN (Fake)",
+            birth_date="1985-02-09",
+            is_admin=1
+        )
+        fake_users.append(fake_admin)
+        
+        for i in range(0, len(fake_users), 50):
+            db.bulk_save_objects(fake_users[i:i+50])
+            
+        db.commit()
+        print("DB_TRAP seeding complete!")
+    except Exception as e:
+        print(f"Error seeding DB_TRAP: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
 def init_db():
     Base.metadata.create_all(bind=engine)
+    # Create tables in DB_TRAP
+    Base.metadata.create_all(bind=trap_engine)
+    # Seed DB_TRAP if empty
+    seed_trap_db()
     
     # SQLite schema migration check
     import sqlite3

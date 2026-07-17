@@ -1,19 +1,691 @@
 import os
 import uuid
 import datetime
-from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form, Header
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, StreamingResponse
-from sqlalchemy.orm import Session
+import re
+import urllib.request
+import urllib.parse
+import json
+import threading
+import time
+import sqlite3
 from io import BytesIO
 
-from database import SessionLocal, init_db, User, Patient, ECGAnalysis
-from analysis import analyze_ecg_image
+from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form, Header, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, StreamingResponse, HTMLResponse
+from sqlalchemy.orm import Session
 from fpdf import FPDF
+
+from database import SessionLocal, TrapSessionLocal, BlockedIP, init_db, User, Patient, ECGAnalysis
+from analysis import analyze_ecg_image
+
+# Manual .env loading to avoid python-dotenv dependency
+def load_env():
+    if os.path.exists(".env"):
+        with open(".env", "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    parts = line.split("=", 1)
+                    if len(parts) == 2:
+                        key, val = parts[0].strip(), parts[1].strip()
+                        os.environ[key] = val
+load_env()
 
 # Initialize database
 init_db()
+
+# Cache blocked IPs in memory to keep middleware requests instant
+blocked_ips_cache = set()
+
+def load_blocked_ips_cache():
+    db = SessionLocal()
+    try:
+        ips = db.query(BlockedIP.ip).all()
+        for ip_tuple in ips:
+            blocked_ips_cache.add(ip_tuple[0])
+        print(f"Loaded {{len(blocked_ips_cache)}} blocked IPs to cache.")
+    except Exception as e:
+        print(f"Error loading blocked IPs: {{e}}")
+    finally:
+        db.close()
+
+load_blocked_ips_cache()
+
+# Failed login attempts counter to block brute force attempts
+failed_logins = {} # IP -> count
+
+def get_client_ip(request: Request) -> str:
+    x_forwarded_for = request.headers.get("x-forwarded-for")
+    if x_forwarded_for:
+        return x_forwarded_for.split(",")[0].strip()
+    x_real_ip = request.headers.get("x-real-ip")
+    if x_real_ip:
+        return x_real_ip.strip()
+    return request.client.host if request.client else "127.0.0.1"
+
+def resolve_ip_details(ip: str):
+    if ip in ["127.0.0.1", "localhost"] or ip.startswith("192.168.") or ip.startswith("10.") or ip.startswith("172."):
+        return {
+            "city": "Локальная сеть (Разработка)",
+            "isp": "Localhost / Test Environment",
+            "country": "Uzbekistan"
+        }
+    try:
+        url = f"http://ip-api.com/json/{{ip}}"
+        req = urllib.request.Request(url, headers={{"User-Agent": "Mozilla/5.0"}})
+        with urllib.request.urlopen(req, timeout=3) as response:
+            data = json.loads(response.read().decode("utf-8"))
+            if data.get("status") == "success":
+                return {
+                    "city": data.get("city", "Unknown City"),
+                    "isp": data.get("isp", "Unknown ISP"),
+                    "country": data.get("country", "Uzbekistan")
+                }
+    except Exception as e:
+        print(f"Failed to geolocate IP {{ip}}: {{e}}")
+    return {
+        "city": "Tashkent (Fallback)",
+        "isp": "Uzonline (Fallback)",
+        "country": "Uzbekistan"
+    }
+
+def ban_ip(ip: str, reason: str, path: str):
+    if ip in blocked_ips_cache:
+        return
+    
+    blocked_ips_cache.add(ip)
+    geo = resolve_ip_details(ip)
+    
+    # Save to database
+    db = SessionLocal()
+    try:
+        exists = db.query(BlockedIP).filter(BlockedIP.ip == ip).first()
+        if not exists:
+            blocked = BlockedIP(
+                ip=ip,
+                reason=reason,
+                last_path=path,
+                city=geo.get("city"),
+                isp=geo.get("isp")
+            )
+            db.add(blocked)
+            db.commit()
+            print(f"BANNED IP: {{ip}} | Reason: {{reason}}")
+    except Exception as e:
+        print(f"Error saving blocked IP to database: {{e}}")
+    finally:
+        db.close()
+        
+    # Send Telegram alert
+    send_telegram_alert(ip, path, reason)
+
+def send_telegram_alert(ip: str, path: str, reason: str):
+    token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+    
+    if not token or not chat_id:
+        print("Telegram credentials not configured in env. Alert skipped.")
+        return
+        
+    message = (
+        f"🚨 <b>ВНИМАНИЕ: Злоумышленник в системе!</b>\\n\\n"
+        f"<b>Статус:</b> Хакер попал в мусорную ловушку.\\n"
+        f"<b>Данные:</b> IP <code>{{ip}}</code>, Попытка доступа к: <code>{{path}}</code>\\n"
+        f"<b>Причина:</b> {{reason}}\\n\\n"
+        f"<b>Действие:</b> «Админ сейчас идет к ноутбуку. Жди, гандон.»"
+    )
+    
+    def send():
+        try:
+            url = f"https://api.telegram.org/bot{{token}}/sendMessage"
+            data = urllib.parse.urlencode({{
+                "chat_id": chat_id,
+                "text": message,
+                "parse_mode": "HTML"
+            }}).encode("utf-8")
+            req = urllib.request.Request(url, data=data, headers={{"Content-Type": "application/x-www-form-urlencoded"}})
+            with urllib.request.urlopen(req, timeout=10) as response:
+                response.read()
+            print(f"Telegram SOS alert sent for IP: {{ip}}")
+        except Exception as e:
+            print(f"Error sending Telegram alert: {{e}}")
+            
+    threading.Thread(target=send, daemon=True).start()
+
+def get_ban_time(ip: str):
+    db = SessionLocal()
+    try:
+        record = db.query(BlockedIP).filter(BlockedIP.ip == ip).first()
+        if record:
+            return record.detected_at, record.city or "Unknown City", record.isp or "Unknown ISP"
+    except Exception as e:
+        print(f"Error getting ban time: {{e}}")
+    finally:
+        db.close()
+    return datetime.datetime.utcnow() + datetime.timedelta(hours=5), "Tashkent (Fallback)", "Uzonline (Fallback)"
+
+def is_ip_malicious(ip: str) -> bool:
+    return ip in blocked_ips_cache
+
+suspicious_patterns = [
+    r"\.git",
+    r"\.env",
+    r"wp-admin",
+    r"wp-login\.php",
+    r"xmlrpc\.php",
+    r"phpmyadmin",
+    r"\.sql",
+    r"backup",
+    r"dump\.tar",
+    r"\.aws/credentials",
+    r"\.ssh/",
+    r"id_rsa",
+    r"passwd",
+    r"config\.json",
+    r"composer\.json",
+    r"package\.json",
+    r"setup\.php",
+    r"admin/config",
+    r"/database\.py",
+    r"/database\.db",
+    r"/cardio_ai\.db",
+    r"^/admin$",
+    r"^/admin/$",
+    r"^/database$",
+    r"^/database/$",
+    r"^/settings$",
+    r"^/settings/$"
+]
+
+def is_suspicious_path(path: str) -> bool:
+    path_lower = path.lower()
+    for pattern in suspicious_patterns:
+        if re.search(pattern, path_lower):
+            return True
+    return False
+
+def get_punishment_page_html(ip: str, path: str):
+    ban_time, city, isp = get_ban_time(ip)
+    # Convert ban_time to ISO format for JavaScript
+    ban_time_iso = ban_time.strftime("%Y-%m-%dT%H:%M:%S")
+    path_lower = path.lower()
+    
+    view_type = "main"
+    if "admin" in path_lower:
+        view_type = "admin"
+    elif "database" in path_lower:
+        view_type = "database"
+    elif "settings" in path_lower:
+        view_type = "settings"
+        
+    active_main = "active" if view_type == "main" else ""
+    active_admin = "active" if view_type == "admin" else ""
+    active_db = "active" if view_type == "database" else ""
+    active_settings = "active" if view_type == "settings" else ""
+    
+    # Render view content
+    view_content = ""
+    if view_type == "main":
+        view_content = f"""
+        <div class="glitch-title">ДОСТУП ЗАПРЕЩЕН. ТЫ В ЛОВУШКЕ.</div>
+        <div class="middle-finger-container">
+            <svg viewBox="0 0 100 100" width="120" height="120" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" class="middle-finger-svg">
+                <path d="M30 75 V 60 Q 30 55 35 55 T 40 60 V 75" />
+                <path d="M40 75 V 50 Q 40 45 45 45 T 50 50 V 75" />
+                <path d="M50 75 V 25 Q 50 18 55 18 T 60 25 V 75" stroke="#ff0055" stroke-width="5" />
+                <path d="M60 75 V 55 Q 60 50 65 50 T 70 55 V 75" />
+                <path d="M70 75 C 70 85 30 85 30 75" />
+                <path d="M22 65 Q 22 60 27 60 T 30 65" />
+            </svg>
+        </div>
+        <p style="font-size: 1.1rem; color: #ff0055; font-weight: bold; margin-bottom: 20px;">
+            Твои действия залогированы. Я вижу, как ты пытаешься украсть мусор.
+        </p>
+        <div class="info-box">
+            <div class="info-line"><span class="info-label"><i class="fa-solid fa-network-wired"></i> Твой IP:</span> {{ip}}</div>
+            <div class="info-line"><span class="info-label"><i class="fa-solid fa-map-pin"></i> Город:</span> {{city}}</div>
+            <div class="info-line"><span class="info-label"><i class="fa-solid fa-server"></i> Провайдер:</span> {{isp}}</div>
+        </div>
+        <div class="timer-container">
+            Ты потратил <span id="time-spent" style="color: #ff0055;">0 минут 0 секунд</span> на кражу фейковых данных.
+        </div>
+        <p style="color: #888; font-size: 0.9rem; margin-bottom: 25px; line-height: 1.6;">
+            Продолжай, мне весело смотреть, как ты тратишь время.
+        </p>
+        <button class="btn-exit" onclick="window.location.reload();">Выход</button>
+        """
+    elif view_type == "admin":
+        view_content = f"""
+        <div class="glitch-title">ФЕЙК АДМИН-ПАНЕЛЬ</div>
+        <div class="middle-finger-container">
+            <svg viewBox="0 0 100 100" width="100" height="100" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" class="middle-finger-svg">
+                <path d="M30 75 V 60 Q 30 55 35 55 T 40 60 V 75" />
+                <path d="M40 75 V 50 Q 40 45 45 45 T 50 50 V 75" />
+                <path d="M50 75 V 25 Q 50 18 55 18 T 60 25 V 75" stroke="#ff0055" stroke-width="5" />
+                <path d="M60 75 V 55 Q 60 50 65 50 T 70 55 V 75" />
+                <path d="M70 75 C 70 85 30 85 30 75" />
+                <path d="M22 65 Q 22 60 27 60 T 30 65" />
+            </svg>
+        </div>
+        <p style="color: #00f0ff; font-weight: bold; margin-bottom: 15px;">
+            Управление пользователями системы (Режим песочницы)
+        </p>
+        <div style="overflow-x: auto; margin: 15px 0;">
+            <table class="mock-table">
+                <thead>
+                    <tr>
+                        <th>Логин</th>
+                        <th>IP</th>
+                        <th>Статус</th>
+                        <th>IQ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>admin</td>
+                        <td>127.0.0.1</td>
+                        <td>Легитимный</td>
+                        <td>Нормальный</td>
+                    </tr>
+                    <tr style="color: #ff0055;">
+                        <td>hacker_лох</td>
+                        <td>{{ip}}</td>
+                        <td>В ловушке</td>
+                        <td>Низкий (&lt;70)</td>
+                    </tr>
+                    <tr>
+                        <td>bot_test</td>
+                        <td>192.168.1.100</td>
+                        <td>Изолирован</td>
+                        <td>Не определен</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="timer-container">
+            Время в ловушке: <span id="time-spent" style="color: #ff0055;">0 минут 0 секунд</span>
+        </div>
+        <p style="color: #888; font-size: 0.85rem; line-height: 1.5; margin-bottom: 20px;">
+            Все твои попытки переключения ролей или удаления пользователей перехвачены. Нам очень смешно.
+        </p>
+        <button class="btn-exit" onclick="window.location.reload();">Сбросить Сессию</button>
+        """
+    elif view_type == "database":
+        view_content = f"""
+        <div class="glitch-title">БАЗА ДАННЫХ ПАЦИЕНТОВ</div>
+        <div class="middle-finger-container">
+            <svg viewBox="0 0 100 100" width="100" height="100" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" class="middle-finger-svg">
+                <path d="M30 75 V 60 Q 30 55 35 55 T 40 60 V 75" />
+                <path d="M40 75 V 50 Q 40 45 45 45 T 50 50 V 75" />
+                <path d="M50 75 V 25 Q 50 18 55 18 T 60 25 V 75" stroke="#ff0055" stroke-width="5" />
+                <path d="M60 75 V 55 Q 60 50 65 50 T 70 55 V 75" />
+                <path d="M70 75 C 70 85 30 85 30 75" />
+                <path d="M22 65 Q 22 60 27 60 T 30 65" />
+            </svg>
+        </div>
+        <p style="color: #00f0ff; font-weight: bold; margin-bottom: 10px;">
+            Обнаружено 2000 записей пациентов (Фейк DB).
+        </p>
+        <p style="color: #ffcc00; font-size: 0.95rem; margin-bottom: 20px;">
+            Ты можешь скачать полную резервную копию базы данных:
+        </p>
+        <a href="/database.sql" class="btn-exit" style="display: inline-block; text-decoration: none; margin-bottom: 25px;"><i class="fa-solid fa-download"></i> Скачать Бэкап (SQL DUMP)</a>
+        <div class="timer-container">
+            Счетчик потраченного времени: <span id="time-spent" style="color: #ff0055;">0 минут 0 секунд</span>
+        </div>
+        <p style="color: #888; font-size: 0.85rem; line-height: 1.5;">
+            Предупреждение: Скачивание может занять вечность. Файл генерируется бесконечно, забивая твою оперативку и диск. Удачи!
+        </p>
+        """
+    elif view_type == "settings":
+        view_content = f"""
+        <div class="glitch-title">НАСТРОЙКИ СИСТЕМЫ</div>
+        <div class="middle-finger-container">
+            <svg viewBox="0 0 100 100" width="100" height="100" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" class="middle-finger-svg">
+                <path d="M30 75 V 60 Q 30 55 35 55 T 40 60 V 75" />
+                <path d="M40 75 V 50 Q 40 45 45 45 T 50 50 V 75" />
+                <path d="M50 75 V 25 Q 50 18 55 18 T 60 25 V 75" stroke="#ff0055" stroke-width="5" />
+                <path d="M60 75 V 55 Q 60 50 65 50 T 70 55 V 75" />
+                <path d="M70 75 C 70 85 30 85 30 75" />
+                <path d="M22 65 Q 22 60 27 60 T 30 65" />
+            </svg>
+        </div>
+        <p style="color: #ff0055; font-weight: bold; margin-bottom: 20px;">
+            Панель быстрого реагирования (Honeypot Console)
+        </p>
+        <div style="display: flex; flex-direction: column; gap: 12px; max-width: 300px; margin: 0 auto 20px auto;">
+            <button class="btn-exit" style="background:#111; border:1px solid #ff0055;" onclick="triggerFakeSettings('self-destruct')">Выключить Сервер</button>
+            <button class="btn-exit" style="background:#111; border:1px solid #ffcc00;" onclick="triggerFakeSettings('purge-logs')">Очистить Логи</button>
+            <button class="btn-exit" style="background:#111; border:1px solid #00f0ff;" onclick="triggerFakeSettings('bypass-auth')">Включить God Mode</button>
+        </div>
+        <div class="timer-container">
+            Время в песочнице: <span id="time-spent" style="color: #ff0055;">0 минут 0 секунд</span>
+        </div>
+        <p style="color: #888; font-size: 0.85rem; line-height: 1.5;">
+            Попытки взломать настройки приведут лишь к дальнейшему логированию вашей активности.
+        </p>
+        <script>
+            function triggerFakeSettings(action) {{
+                alert("ОШИБКА: Действие заблокировано. Мы залогировали твою попытку. Продолжай тыкать, это развивает моторику пальцев.");
+            }}
+        </script>
+        """
+
+    html = f"""<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ДОСТУП ЗАПРЕЩЕН // TRAPPED</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body {{
+            background-color: #030305;
+            color: #f1f1f3;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            padding: 20px;
+            box-sizing: border-box;
+        }}
+        .header-nav {{
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            z-index: 10;
+            flex-wrap: wrap;
+            justify-content: center;
+        }}
+        .nav-btn {{
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #888;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            font-weight: bold;
+        }}
+        .nav-btn:hover {{
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.05);
+        }}
+        .nav-btn.active {{
+            background: rgba(255, 0, 85, 0.15);
+            border-color: #ff0055;
+            color: #ff0055;
+            text-shadow: 0 0 8px rgba(255, 0, 85, 0.6);
+        }}
+        .trap-card {{
+            background: rgba(10, 15, 30, 0.85);
+            border: 2px solid #ff0055;
+            box-shadow: 0 0 35px rgba(255, 0, 85, 0.5), inset 0 0 20px rgba(255, 0, 85, 0.2);
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 650px;
+            width: 100%;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            position: relative;
+            z-index: 10;
+            box-sizing: border-box;
+        }}
+        .glitch-title {{
+            color: #ff0055;
+            font-size: 2.2rem;
+            font-weight: 900;
+            margin-bottom: 25px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px rgba(255, 0, 85, 0.6);
+            animation: pulse-title 1.5s infinite alternate;
+        }}
+        .info-box {{
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+            font-size: 0.95rem;
+        }}
+        .info-line {{
+            margin: 10px 0;
+            line-height: 1.5;
+        }}
+        .info-label {{
+            color: #00f0ff;
+            font-weight: bold;
+            display: inline-block;
+            width: 150px;
+        }}
+        .timer-container {{
+            font-size: 1.25rem;
+            color: #ffcc00;
+            margin: 25px 0;
+            font-weight: bold;
+            text-shadow: 0 0 8px rgba(255, 204, 0, 0.4);
+        }}
+        .btn-exit {{
+            background: #ff0055;
+            color: #fff;
+            border: none;
+            padding: 12px 35px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 0 15px rgba(255, 0, 85, 0.5);
+            transition: all 0.3s;
+        }}
+        .btn-exit:hover {{
+            background: #ff2277;
+            box-shadow: 0 0 25px rgba(255, 0, 85, 0.8);
+            transform: scale(1.04);
+        }}
+        .middle-finger-container {{
+            margin: 20px 0;
+            color: #fff;
+        }}
+        .middle-finger-svg {{
+            animation: pulse-finger 2s infinite alternate;
+        }}
+        .mock-table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 0.9rem;
+            background: rgba(0,0,0,0.4);
+        }}
+        .mock-table th, .mock-table td {{
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 12px;
+            text-align: left;
+        }}
+        .mock-table th {{
+            background: rgba(0, 0, 0, 0.7);
+            color: #00f0ff;
+        }}
+        @keyframes pulse-title {{
+            0% {{ transform: scale(1); text-shadow: 0 0 10px rgba(255, 0, 85, 0.6); }}
+            100% {{ transform: scale(1.02); text-shadow: 0 0 25px rgba(255, 0, 85, 0.9), 0 0 45px rgba(255, 0, 85, 0.3); }}
+        }}
+        @keyframes pulse-finger {{
+            0% {{ transform: scale(1) rotate(0deg); filter: drop-shadow(0 0 5px rgba(255,0,85,0.4)); }}
+            50% {{ transform: scale(1.06) rotate(3deg); filter: drop-shadow(0 0 15px rgba(255,0,85,0.7)); }}
+            100% {{ transform: scale(1) rotate(-3deg); filter: drop-shadow(0 0 5px rgba(255,0,85,0.4)); }}
+        }}
+        #matrix-canvas {{
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            opacity: 0.12;
+            pointer-events: none;
+        }}
+    </style>
+</head>
+<body>
+    <canvas id="matrix-canvas"></canvas>
+    
+    <div class="header-nav">
+        <a href="/" class="nav-btn {active_main}"><i class="fa-solid fa-skull"></i> Главная</a>
+        <a href="/admin" class="nav-btn {active_admin}"><i class="fa-solid fa-user-shield"></i> Админка</a>
+        <a href="/database" class="nav-btn {active_db}"><i class="fa-solid fa-database"></i> База Данных</a>
+        <a href="/settings" class="nav-btn {active_settings}"><i class="fa-solid fa-gears"></i> Настройки</a>
+    </div>
+
+    <div class="trap-card">
+        {view_content}
+    </div>
+
+    <script>
+        // Matrix Rain
+        const canvas = document.getElementById('matrix-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+';
+        const fontSize = 16;
+        const columns = canvas.width / fontSize;
+
+        const rainDrops = [];
+        for (let x = 0; x < columns; x++) {{
+            rainDrops[x] = Math.random() * -100; // staggered start
+        }}
+
+        const draw = () => {{
+            ctx.fillStyle = 'rgba(3, 3, 5, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#ff003c';
+            ctx.font = fontSize + 'px monospace';
+
+            for (let i = 0; i < rainDrops.length; i++) {{
+                const text = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+                ctx.fillText(text, i * fontSize, rainDrops[i] * fontSize);
+
+                if (rainDrops[i] * fontSize > canvas.height && Math.random() > 0.975) {{
+                    rainDrops[i] = 0;
+                }}
+                rainDrops[i]++;
+            }}
+        }};
+
+        setInterval(draw, 33);
+        window.addEventListener('resize', () => {{
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }});
+
+        // Live Timer
+        const startTime = new Date("{ban_time_iso}").getTime();
+        
+        function updateTimer() {{
+            const now = new Date().getTime();
+            const diffMs = now - startTime;
+            const diffSecs = Math.max(0, Math.floor(diffMs / 1000));
+            const minutes = Math.floor(diffSecs / 60);
+            const seconds = diffSecs % 60;
+            
+            const timerEl = document.getElementById("time-spent");
+            if (timerEl) {{
+                timerEl.innerText = minutes + " минут " + seconds + " секунд";
+            }}
+        }}
+        
+        setInterval(updateTimer, 1000);
+        updateTimer();
+    </script>
+</body>
+</html>
+"""
+    return html
+
+def generate_garbage_ecg_graph():
+    import cv2
+    import numpy as np
+    import random
+    
+    # Create a pink grid image (ECG grid paper)
+    height, width = 300, 1000
+    img = np.ones((height, width, 3), dtype=np.uint8) * 255
+    
+    grid_color_minor = (240, 210, 210) # light pink
+    grid_color_major = (200, 150, 150) # darker pink
+    
+    for x in range(0, width, 10):
+        color = grid_color_major if x % 50 == 0 else grid_color_minor
+        thickness = 2 if x % 50 == 0 else 1
+        cv2.line(img, (x, 0), (x, height), color, thickness)
+    for y in range(0, height, 10):
+        color = grid_color_major if y % 50 == 0 else grid_color_minor
+        thickness = 2 if y % 50 == 0 else 1
+        cv2.line(img, (0, y), (width, y), color, thickness)
+        
+    # Draw a random ECG-like waveform
+    points = []
+    y_center = height // 2
+    
+    x = 0
+    while x < width:
+        # Baseline
+        segment_len = random.randint(15, 30)
+        for _ in range(segment_len):
+            if x >= width: break
+            points.append((x, y_center + random.randint(-1, 1)))
+            x += 1
+            
+        # P wave
+        p_len = random.randint(10, 15)
+        for i in range(p_len):
+            if x >= width: break
+            p_y = y_center - int(10 * np.sin(np.pi * i / p_len))
+            points.append((x, p_y))
+            x += 1
+            
+        # QRS complex
+        if x >= width: break
+        points.append((x, y_center + 5))
+        x += 1
+        if x >= width: break
+        points.append((x, y_center - 40 - random.randint(0, 20)))
+        x += 1
+        if x >= width: break
+        points.append((x, y_center + 15 + random.randint(0, 10)))
+        x += 1
+        if x >= width: break
+        points.append((x, y_center))
+        x += 1
+        
+        # T wave
+        t_len = random.randint(15, 25)
+        for i in range(t_len):
+            if x >= width: break
+            t_y = y_center - int(15 * np.sin(np.pi * i / t_len))
+            points.append((x, t_y))
+            x += 1
+    
+    # Draw waveform
+    for idx in range(len(points) - 1):
+        cv2.line(img, points[idx], points[idx+1], (0, 0, 180), 2)
+        
+    _, jpeg_bytes = cv2.imencode(".jpg", img)
+    return jpeg_bytes.tobytes()
 
 app = FastAPI(title="Yurak NN API", version="1.0.0")
 
@@ -25,6 +697,61 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def active_defense_middleware(request: Request, call_next):
+    ip = get_client_ip(request)
+    path = request.url.path
+    
+    # 1. Check if path is suspicious (scanners, system files, etc.)
+    if is_suspicious_path(path):
+        ban_ip(ip, reason=f"Suspicious path scan: {path}", path=path)
+        
+    # 2. If IP is malicious, apply active defense rules
+    if is_ip_malicious(ip):
+        # 2a. Database dump trap (infinite SQL download)
+        if path in ["/database.sql", "/database", "/api/admin/backup"]:
+            def generate_infinite_garbage_sql():
+                import random
+                import string
+                yield "-- Cardio AI Patient Database Dump\n"
+                yield "-- Created: 2026-07-17\n"
+                yield "CREATE TABLE patients (id VARCHAR(255), name VARCHAR(255), ecg_data TEXT);\n"
+                
+                names = ["Abdukarimov", "Rustamov", "Karimov", "Sodiqov", "Ergashev", "Hasanov", "Nazarov", "Yusupov", "Mirzayev", "Axmedov", "Umarov", "Xalilov"]
+                first_names = ["Bobur", "Feruza", "Sardor", "Nigora", "Jasur", "Malika", "Sevara", "Lola", "Rayxon", "Kamila", "Aziza", "Shaxlo"]
+                
+                while True:
+                    chunk = ""
+                    for _ in range(100):
+                        p_id = f"CARDIO-{random.randint(100000, 999999)}"
+                        fullname = f"{random.choice(names)} {random.choice(first_names)}"
+                        ecg_garbage = "".join(random.choice(string.ascii_letters + string.digits) for _ in range(1024))
+                        chunk += f"INSERT INTO patients VALUES ('{p_id}', '{fullname}', '{ecg_garbage}');\n"
+                    yield chunk
+                    
+            return StreamingResponse(
+                generate_infinite_garbage_sql(),
+                media_type="text/plain",
+                headers={"Content-Disposition": "attachment; filename=cardio_ai_database_backup.sql"}
+            )
+            
+        # 2b. ECG image redirection (dynamic garbage graphs)
+        if path.startswith("/uploads/"):
+            jpeg_bytes = generate_garbage_ecg_graph()
+            return Response(content=jpeg_bytes, media_type="image/jpeg")
+            
+        # 2c. Web / Page views (Dungeon Labyrinth Punishment Pages)
+        is_html_request = "text/html" in request.headers.get("accept", "")
+        is_page_path = path in ["/", "/index.html", "/admin", "/database", "/settings"] or "admin" in path.lower()
+        
+        if is_html_request or is_page_path:
+            html_content = get_punishment_page_html(ip, path)
+            return HTMLResponse(content=html_content, status_code=200)
+            
+    # If not malicious or doesn't match rules, proceed normally
+    response = await call_next(request)
+    return response
 
 # Ensure upload directory exists
 UPLOAD_DIR = os.environ.get("UPLOAD_DIR", "uploads")
@@ -73,8 +800,12 @@ backup_thread.start()
 
 
 # Dependency to get DB session
-def get_db():
-    db = SessionLocal()
+def get_db(request: Request):
+    ip = get_client_ip(request)
+    if is_ip_malicious(ip):
+        db = TrapSessionLocal()
+    else:
+        db = SessionLocal()
     try:
         yield db
     finally:
@@ -82,7 +813,15 @@ def get_db():
 
 # Auth Login Endpoint
 @app.post("/api/auth/login")
-def login(phone: str = Form(...), passcode: str = Form(...), db: Session = Depends(get_db)):
+def login(request: Request, phone: str = Form(...), passcode: str = Form(...), db: Session = Depends(get_db)):
+    ip = get_client_ip(request)
+    
+    if is_ip_malicious(ip):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Telefon raqam yoki kod noto'g'ri"
+        )
+        
     # Normalize phone number
     phone_clean = phone.replace(" ", "")
     if not phone_clean.startswith("+"):
@@ -90,10 +829,17 @@ def login(phone: str = Form(...), passcode: str = Form(...), db: Session = Depen
         
     user = db.query(User).filter(User.phone == phone_clean, User.passcode == passcode).first()
     if not user:
+        failed_logins[ip] = failed_logins.get(ip, 0) + 1
+        if failed_logins[ip] >= 5:
+            ban_ip(ip, reason="Brute force login attempts (5+ failed passcodes)", path="/api/auth/login")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Telefon raqam yoki kod noto'g'ri"
         )
+        
+    if ip in failed_logins:
+        failed_logins[ip] = 0
+        
     # Simple token implementation
     token = f"token_{user.id}_{uuid.uuid4().hex[:8]}"
     return {
