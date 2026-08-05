@@ -991,7 +991,13 @@ def register_patient(
     current_user: User = Depends(get_current_user)
 ):
     # Check if patient already exists by phone and clinic
-    existing_patient = db.query(Patient).filter(Patient.phone == phone, Patient.clinic_id == current_user.clinic_id).first()
+    # NOTE: Use is_(None) for NULL comparison in SQLAlchemy — '== None' does not work for SQL NULL
+    pat_query = db.query(Patient).filter(Patient.phone == phone)
+    if current_user.clinic_id is None:
+        pat_query = pat_query.filter(Patient.clinic_id.is_(None))
+    else:
+        pat_query = pat_query.filter(Patient.clinic_id == current_user.clinic_id)
+    existing_patient = pat_query.first()
     if existing_patient:
         # Update address if not set
         if region and not existing_patient.region:
@@ -1072,7 +1078,13 @@ async def analyze_ecg(
     import numpy as np
     
     # Verify patient exists
-    patient = db.query(Patient).filter(Patient.id == patient_id, Patient.clinic_id == current_user.clinic_id).first()
+    # NOTE: Use is_(None) for NULL comparison in SQLAlchemy
+    ecg_pat_query = db.query(Patient).filter(Patient.id == patient_id)
+    if current_user.clinic_id is None:
+        ecg_pat_query = ecg_pat_query.filter(Patient.clinic_id.is_(None))
+    else:
+        ecg_pat_query = ecg_pat_query.filter(Patient.clinic_id == current_user.clinic_id)
+    patient = ecg_pat_query.first()
     if not patient:
         raise HTTPException(status_code=404, detail="Bemor topilmadi")
         
@@ -1141,7 +1153,7 @@ async def analyze_ecg(
         pulse=pulse,
         image_path=file_path,
         classification=analysis_result["classification"],
-        details=str(analysis_result["details"]).replace("'", '"'),  # Ensure valid json string
+        details=json.dumps(analysis_result["details"], ensure_ascii=False),
         clinic_id=current_user.clinic_id
     )
     db.add(new_analysis)
