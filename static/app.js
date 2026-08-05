@@ -793,7 +793,8 @@ function setupFormSubmission() {
             const patResult = await patResponse.json();
             
             if (!patResponse.ok || patResult.status !== 'success') {
-                throw new Error("Bemor ro'yxatga olishda xatolik yuz berdi");
+                const errMsg = patResult.detail || patResult.message || `Server javobi: ${patResponse.status}`;
+                throw new Error(`Bemor ro'yxatga olishda xatolik: ${errMsg}`);
             }
             
             const patientId = patResult.patient.id;

@@ -990,71 +990,78 @@ def register_patient(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # Check if patient already exists by phone and clinic
-    # NOTE: Use is_(None) for NULL comparison in SQLAlchemy — '== None' does not work for SQL NULL
-    pat_query = db.query(Patient).filter(Patient.phone == phone)
-    if current_user.clinic_id is None:
-        pat_query = pat_query.filter(Patient.clinic_id.is_(None))
-    else:
-        pat_query = pat_query.filter(Patient.clinic_id == current_user.clinic_id)
-    existing_patient = pat_query.first()
-    if existing_patient:
-        # Update address if not set
-        if region and not existing_patient.region:
-            existing_patient.region = region
-            existing_patient.district = district
-            existing_patient.village = village
-            existing_patient.street = street
-            db.commit()
-            db.refresh(existing_patient)
+    try:
+        # Check if patient already exists by phone and clinic
+        # NOTE: Use is_(None) for NULL comparison in SQLAlchemy — '== None' does not work for SQL NULL
+        pat_query = db.query(Patient).filter(Patient.phone == phone)
+        if current_user.clinic_id is None:
+            pat_query = pat_query.filter(Patient.clinic_id.is_(None))
+        else:
+            pat_query = pat_query.filter(Patient.clinic_id == current_user.clinic_id)
+        existing_patient = pat_query.first()
+        if existing_patient:
+            # Update address if not set
+            if region and not existing_patient.region:
+                existing_patient.region = region
+                existing_patient.district = district
+                existing_patient.village = village
+                existing_patient.street = street
+                db.commit()
+                db.refresh(existing_patient)
+                
+            return {
+                "status": "success",
+                "message": "Bemor allaqachon mavjud",
+                "patient": {
+                    "id": existing_patient.id,
+                    "first_name": existing_patient.first_name,
+                    "last_name": existing_patient.last_name,
+                    "birth_year": existing_patient.birth_year,
+                    "gender": existing_patient.gender,
+                    "phone": existing_patient.phone
+                }
+            }
+        
+        # Generate unique Cardio-ID
+        cardio_id = f"CARDIO-{random_id()}"
+        # Verify uniqueness
+        while db.query(Patient).filter(Patient.id == cardio_id).first() is not None:
+            cardio_id = f"CARDIO-{random_id()}"
             
+        new_patient = Patient(
+            id=cardio_id,
+            first_name=first_name,
+            last_name=last_name,
+            birth_year=birth_year,
+            gender=gender,
+            phone=phone,
+            region=region,
+            district=district,
+            village=village,
+            street=street,
+            clinic_id=current_user.clinic_id
+        )
+        db.add(new_patient)
+        db.commit()
+        db.refresh(new_patient)
+        
         return {
             "status": "success",
-            "message": "Bemor allaqachon mavjud",
             "patient": {
-                "id": existing_patient.id,
-                "first_name": existing_patient.first_name,
-                "last_name": existing_patient.last_name,
-                "birth_year": existing_patient.birth_year,
-                "gender": existing_patient.gender,
-                "phone": existing_patient.phone
+                "id": new_patient.id,
+                "first_name": new_patient.first_name,
+                "last_name": new_patient.last_name,
+                "birth_year": new_patient.birth_year,
+                "gender": new_patient.gender,
+                "phone": new_patient.phone
             }
         }
-    
-    # Generate unique Cardio-ID
-    cardio_id = f"CARDIO-{random_id()}"
-    # Verify uniqueness
-    while db.query(Patient).filter(Patient.id == cardio_id).first() is not None:
-        cardio_id = f"CARDIO-{random_id()}"
-        
-    new_patient = Patient(
-        id=cardio_id,
-        first_name=first_name,
-        last_name=last_name,
-        birth_year=birth_year,
-        gender=gender,
-        phone=phone,
-        region=region,
-        district=district,
-        village=village,
-        street=street,
-        clinic_id=current_user.clinic_id
-    )
-    db.add(new_patient)
-    db.commit()
-    db.refresh(new_patient)
-    
-    return {
-        "status": "success",
-        "patient": {
-            "id": new_patient.id,
-            "first_name": new_patient.first_name,
-            "last_name": new_patient.last_name,
-            "birth_year": new_patient.birth_year,
-            "gender": new_patient.gender,
-            "phone": new_patient.phone
-        }
-    }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"register_patient ERROR: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Serverda xatolik: {str(e)}")
 
 def random_id():
     import random
