@@ -742,6 +742,7 @@ function handleSelectedFiles(files) {
 // 6. FORM SUBMISSION & BLACK BOX TELEMETRY SIMULATION
 function setupFormSubmission() {
     const form = document.getElementById('new-patient-form');
+    if (!form) return;
     
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -751,12 +752,24 @@ function setupFormSubmission() {
             return;
         }
         
-        // 1. Gather all inputs
-        const lastName = document.getElementById('pat-lastname').value.trim();
-        const firstName = document.getElementById('pat-firstname').value.trim();
-        const birthYear = parseInt(document.getElementById('pat-birthyear').value);
-        const gender = document.querySelector('input[name="pat-gender"]:checked').value;
-        const phone = document.getElementById('pat-phone').value.trim();
+        // 1. Gather all inputs safely
+        const lastNameElem = document.getElementById('pat-lastname');
+        const firstNameElem = document.getElementById('pat-firstname');
+        const birthYearElem = document.getElementById('pat-birthyear');
+        const phoneElem = document.getElementById('pat-phone');
+        
+        const lastName = lastNameElem ? lastNameElem.value.trim() : '';
+        const firstName = firstNameElem ? firstNameElem.value.trim() : '';
+        const birthYear = birthYearElem ? (parseInt(birthYearElem.value) || 1985) : 1985;
+        
+        const genderRadio = document.querySelector('input[name="pat-gender"]:checked');
+        const gender = genderRadio ? genderRadio.value : "Erkak";
+        const phone = phoneElem ? phoneElem.value.trim() : '';
+        
+        if (!lastName || !firstName || !phone) {
+            alert("Iltimos, bemor familiyasi, ismi va telefon raqamini to'liq kiriting.");
+            return;
+        }
         
         // Symptoms
         const symptomsArray = [];
@@ -765,9 +778,13 @@ function setupFormSubmission() {
         });
         const symptomsStr = symptomsArray.join(';');
         
-        const sysBP = parseInt(document.getElementById('vitals-sys').value);
-        const diaBP = parseInt(document.getElementById('vitals-dia').value);
-        const pulse = parseInt(document.getElementById('vitals-pulse').value);
+        const sysBPElem = document.getElementById('vitals-sys');
+        const diaBPElem = document.getElementById('vitals-dia');
+        const pulseElem = document.getElementById('vitals-pulse');
+        
+        const sysBP = sysBPElem ? (parseInt(sysBPElem.value) || 120) : 120;
+        const diaBP = diaBPElem ? (parseInt(diaBPElem.value) || 80) : 80;
+        const pulse = pulseElem ? (parseInt(pulseElem.value) || 72) : 72;
         
         // 2. Show Analyzing View
         switchView('analyzing-view');
@@ -790,6 +807,15 @@ function setupFormSubmission() {
                 headers: { 'Authorization': `Bearer ${state.token}` },
                 body: patFormData
             });
+            
+            if (patResponse.status === 401) {
+                localStorage.removeItem('cardio_token');
+                state.token = null;
+                alert("Sessiya muddati tugadi. Iltimos, qaytadan tizimga kiring.");
+                switchView('login-screen');
+                return;
+            }
+            
             const patResult = await patResponse.json();
             
             if (!patResponse.ok || patResult.status !== 'success') {
@@ -804,7 +830,9 @@ function setupFormSubmission() {
             await runTelemetryStep('ana-step-3', 1200);
             await runTelemetryStep('ana-step-4', 1200);
             
-            const ecgType = document.getElementById('ecg-type').value;
+            const ecgTypeElem = document.getElementById('ecg-type');
+            const ecgType = ecgTypeElem ? ecgTypeElem.value : 'standard';
+            
             const ecgFormData = new FormData();
             ecgFormData.append('patient_id', patientId);
             ecgFormData.append('symptoms', symptomsStr);
@@ -821,6 +849,14 @@ function setupFormSubmission() {
                 headers: { 'Authorization': `Bearer ${state.token}` },
                 body: ecgFormData
             });
+            
+            if (ecgResponse.status === 401) {
+                localStorage.removeItem('cardio_token');
+                state.token = null;
+                alert("Sessiya muddati tugadi. Iltimos, qaytadan tizimga kiring.");
+                switchView('login-screen');
+                return;
+            }
             
             await runTelemetryStep('ana-step-5', 1000);
             
@@ -842,7 +878,7 @@ function setupFormSubmission() {
                     pulse,
                     ecgResult.details,
                     ecgResult.image_path,
-                    genderRadioValue() || "Erkak"
+                    gender
                 );
             } else {
                 throw new Error(ecgResult.detail || "EKG tahlil qilishda xatolik yuz berdi");

@@ -1080,100 +1080,116 @@ async def analyze_ecg(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    from typing import List
-    import cv2
-    import numpy as np
-    
-    # Verify patient exists
-    # NOTE: Use is_(None) for NULL comparison in SQLAlchemy
-    ecg_pat_query = db.query(Patient).filter(Patient.id == patient_id)
-    if current_user.clinic_id is None:
-        ecg_pat_query = ecg_pat_query.filter(Patient.clinic_id.is_(None))
-    else:
-        ecg_pat_query = ecg_pat_query.filter(Patient.clinic_id == current_user.clinic_id)
-    patient = ecg_pat_query.first()
-    if not patient:
-        raise HTTPException(status_code=404, detail="Bemor topilmadi")
+    try:
+        from typing import List
+        import cv2
+        import numpy as np
         
-    if not files:
-        raise HTTPException(status_code=400, detail="Hech qanday EKG tasviri yuklanmadi")
+        # Ensure upload directory exists with fallback
+        target_upload_dir = UPLOAD_DIR
+        try:
+            os.makedirs(target_upload_dir, exist_ok=True)
+        except Exception as dir_err:
+            print(f"Cannot create UPLOAD_DIR {target_upload_dir}: {dir_err}. Falling back to 'uploads'.")
+            target_upload_dir = "uploads"
+            os.makedirs(target_upload_dir, exist_ok=True)
         
-    # If there's only one file, save it directly
-    if len(files) == 1:
-        file = files[0]
-        file_extension = os.path.splitext(file.filename)[1]
-        safe_filename = f"{uuid.uuid4().hex}{file_extension}"
-        file_path = os.path.join(UPLOAD_DIR, safe_filename)
-        
-        with open(file_path, "wb") as buffer:
-            content = await file.read()
-            buffer.write(content)
-        original_filename = file.filename
-    else:
-        # Multiple files: Load them into OpenCV and stitch horizontally
-        cv_imgs = []
-        for file in files:
-            content = await file.read()
-            nparr = np.frombuffer(content, np.uint8)
-            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-            if img is not None:
-                cv_imgs.append(img)
-        
-        if not cv_imgs:
-            raise HTTPException(status_code=400, detail="Yuklangan fayllarni o'qib bo'lmadi")
+        # Verify patient exists
+        # NOTE: Use is_(None) for NULL comparison in SQLAlchemy
+        ecg_pat_query = db.query(Patient).filter(Patient.id == patient_id)
+        if current_user.clinic_id is None:
+            ecg_pat_query = ecg_pat_query.filter(Patient.clinic_id.is_(None))
+        else:
+            ecg_pat_query = ecg_pat_query.filter(Patient.clinic_id == current_user.clinic_id)
+        patient = ecg_pat_query.first()
+        if not patient:
+            raise HTTPException(status_code=404, detail="Bemor topilmadi")
             
-        # Resize all segments to match the height of the smallest one
-        target_h = min(img.shape[0] for img in cv_imgs)
-        resized_imgs = []
-        for img in cv_imgs:
-            h, w = img.shape[:2]
-            new_w = int(w * (target_h / h))
-            resized = cv2.resize(img, (new_w, target_h))
-            resized_imgs.append(resized)
+        if not files:
+            raise HTTPException(status_code=400, detail="Hech qanday EKG tasviri yuklanmadi")
             
-        # Stitch horizontally
-        stitched_img = np.hstack(resized_imgs)
+        # If there's only one file, save it directly
+        if len(files) == 1:
+            file = files[0]
+            file_extension = os.path.splitext(file.filename)[1] if file.filename else ".jpg"
+            safe_filename = f"{uuid.uuid4().hex}{file_extension}"
+            file_path = os.path.join(target_upload_dir, safe_filename)
+            
+            with open(file_path, "wb") as buffer:
+                content = await file.read()
+                buffer.write(content)
+            original_filename = file.filename or "ecg.jpg"
+        else:
+            # Multiple files: Load them into OpenCV and stitch horizontally
+            cv_imgs = []
+            for file in files:
+                content = await file.read()
+                nparr = np.frombuffer(content, np.uint8)
+                img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                if img is not None:
+                    cv_imgs.append(img)
+            
+            if not cv_imgs:
+                raise HTTPException(status_code=400, detail="Yuklangan fayllarni o'qib bo'lmadi")
+                
+            # Resize all segments to match the height of the smallest one
+            target_h = min(img.shape[0] for img in cv_imgs)
+            resized_imgs = []
+            for img in cv_imgs:
+                h, w = img.shape[:2]
+                new_w = int(w * (target_h / h))
+                resized = cv2.resize(img, (new_w, target_h))
+                resized_imgs.append(resized)
+                
+            # Stitch horizontally
+            stitched_img = np.hstack(resized_imgs)
+            
+            # Save the stitched image
+            safe_filename = f"{uuid.uuid4().hex}.jpg"
+            file_path = os.path.join(target_upload_dir, safe_filename)
+            cv2.imwrite(file_path, stitched_img)
+            original_filename = "stitched_ecg.jpg"
+            
+        # Run the analysis engine
+        analysis_result = analyze_ecg_image(
+            image_path=file_path,
+            filename=original_filename,
+            symptoms_str=symptoms,
+            sys_bp=blood_pressure_sys,
+            dia_bp=blood_pressure_dia,
+            pulse=pulse,
+            ecg_type=ecg_type
+        )
         
-        # Save the stitched image
-        safe_filename = f"{uuid.uuid4().hex}.jpg"
-        file_path = os.path.join(UPLOAD_DIR, safe_filename)
-        cv2.imwrite(file_path, stitched_img)
-        original_filename = "stitched_ecg.jpg"
+        # Save to database
+        new_analysis = ECGAnalysis(
+            patient_id=patient_id,
+            symptoms=symptoms,
+            blood_pressure_sys=blood_pressure_sys,
+            blood_pressure_dia=blood_pressure_dia,
+            pulse=pulse,
+            image_path=file_path,
+            classification=analysis_result["classification"],
+            details=json.dumps(analysis_result["details"], ensure_ascii=False),
+            clinic_id=current_user.clinic_id
+        )
+        db.add(new_analysis)
+        db.commit()
+        db.refresh(new_analysis)
         
-    # Run the analysis engine
-    analysis_result = analyze_ecg_image(
-        image_path=file_path,
-        filename=original_filename,
-        symptoms_str=symptoms,
-        sys_bp=blood_pressure_sys,
-        dia_bp=blood_pressure_dia,
-        pulse=pulse,
-        ecg_type=ecg_type
-    )
-    
-    # Save to database
-    new_analysis = ECGAnalysis(
-        patient_id=patient_id,
-        symptoms=symptoms,
-        blood_pressure_sys=blood_pressure_sys,
-        blood_pressure_dia=blood_pressure_dia,
-        pulse=pulse,
-        image_path=file_path,
-        classification=analysis_result["classification"],
-        details=json.dumps(analysis_result["details"], ensure_ascii=False),
-        clinic_id=current_user.clinic_id
-    )
-    db.add(new_analysis)
-    db.commit()
-    db.refresh(new_analysis)
-    
-    return {
-        "status": "success",
-        "analysis_id": new_analysis.id,
-        "classification": new_analysis.classification,
-        "details": analysis_result["details"],
-        "image_path": new_analysis.image_path
-    }
+        return {
+            "status": "success",
+            "analysis_id": new_analysis.id,
+            "classification": new_analysis.classification,
+            "details": analysis_result["details"],
+            "image_path": new_analysis.image_path
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"analyze_ecg ERROR: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"EKG tahlil qilishda xatolik: {str(e)}")
 
 # PDF Protocol Generation Endpoint
 @app.get("/api/ecg/protocol/{analysis_id}/{lang}")
