@@ -819,8 +819,15 @@ function setupFormSubmission() {
             const patResult = await patResponse.json();
             
             if (!patResponse.ok || patResult.status !== 'success') {
-                const errMsg = patResult.detail || patResult.message || `Server javobi: ${patResponse.status}`;
-                throw new Error(`Bemor ro'yxatga olishda xatolik: ${errMsg}`);
+                let errMsg = "Bemor ro'yxatga olishda xatolik yuz berdi";
+                if (typeof patResult.detail === 'string') {
+                    errMsg = patResult.detail;
+                } else if (Array.isArray(patResult.detail) && patResult.detail.length > 0) {
+                    errMsg = patResult.detail.map(d => d.msg || JSON.stringify(d)).join('; ');
+                } else if (patResult.message) {
+                    errMsg = patResult.message;
+                }
+                throw new Error(errMsg);
             }
             
             const patientId = patResult.patient.id;
@@ -881,11 +888,17 @@ function setupFormSubmission() {
                     gender
                 );
             } else {
-                throw new Error(ecgResult.detail || "EKG tahlil qilishda xatolik yuz berdi");
+                let ecgErr = "EKG tahlil qilishda xatolik yuz berdi";
+                if (typeof ecgResult.detail === 'string') {
+                    ecgErr = ecgResult.detail;
+                } else if (Array.isArray(ecgResult.detail) && ecgResult.detail.length > 0) {
+                    ecgErr = ecgResult.detail.map(d => d.msg || JSON.stringify(d)).join('; ');
+                }
+                throw new Error(ecgErr);
             }
             
         } catch (error) {
-            alert("Xatolik yuz berdi: " + error.message);
+            alert(error.message);
             switchView('new-patient-view');
         }
     });

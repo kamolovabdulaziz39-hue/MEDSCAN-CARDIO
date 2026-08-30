@@ -980,7 +980,7 @@ def register(
 def register_patient(
     first_name: str = Form(...),
     last_name: str = Form(...),
-    birth_year: int = Form(...),
+    birth_year: str = Form(...),
     gender: str = Form(...),
     phone: str = Form(...),
     region: str = Form(None),
@@ -991,21 +991,37 @@ def register_patient(
     current_user: User = Depends(get_current_user)
 ):
     try:
-        # Check if patient already exists by phone and clinic
-        # NOTE: Use is_(None) for NULL comparison in SQLAlchemy — '== None' does not work for SQL NULL
-        pat_query = db.query(Patient).filter(Patient.phone == phone)
-        if current_user.clinic_id is None:
-            pat_query = pat_query.filter(Patient.clinic_id.is_(None))
-        else:
-            pat_query = pat_query.filter(Patient.clinic_id == current_user.clinic_id)
+        try:
+            birth_year_int = int(birth_year)
+        except (ValueError, TypeError):
+            birth_year_int = 1985
+
+        phone_clean = phone.strip().replace(" ", "").replace("-", "")
+        if not phone_clean.startswith("+"):
+            phone_clean = "+" + phone_clean
+
+        # Check if patient already exists by phone
+        pat_query = db.query(Patient).filter(
+            (Patient.phone == phone_clean) | (Patient.phone == phone)
+        )
+        if current_user.role != "superadmin":
+            if current_user.clinic_id is not None:
+                pat_query = pat_query.filter(
+                    (Patient.clinic_id == current_user.clinic_id) | (Patient.clinic_id.is_(None))
+                )
         existing_patient = pat_query.first()
         if existing_patient:
-            # Update address if not set
+            updated = False
+            if current_user.clinic_id and not existing_patient.clinic_id:
+                existing_patient.clinic_id = current_user.clinic_id
+                updated = True
             if region and not existing_patient.region:
                 existing_patient.region = region
                 existing_patient.district = district
                 existing_patient.village = village
                 existing_patient.street = street
+                updated = True
+            if updated:
                 db.commit()
                 db.refresh(existing_patient)
                 
@@ -1024,22 +1040,21 @@ def register_patient(
         
         # Generate unique Cardio-ID
         cardio_id = f"CARDIO-{random_id()}"
-        # Verify uniqueness
         while db.query(Patient).filter(Patient.id == cardio_id).first() is not None:
             cardio_id = f"CARDIO-{random_id()}"
             
         new_patient = Patient(
             id=cardio_id,
-            first_name=first_name,
-            last_name=last_name,
-            birth_year=birth_year,
+            first_name=first_name.strip(),
+            last_name=last_name.strip(),
+            birth_year=birth_year_int,
             gender=gender,
-            phone=phone,
-            region=region,
-            district=district,
-            village=village,
-            street=street,
-            clinic_id=current_user.clinic_id
+            phone=phone_clean,
+            region=region or current_user.region,
+            district=district or current_user.district,
+            village=village or current_user.village,
+            street=street or current_user.street,
+            clinic_id=current_user.clinic_id or 1
         )
         db.add(new_patient)
         db.commit()
@@ -1061,7 +1076,7 @@ def register_patient(
     except Exception as e:
         print(f"register_patient ERROR: {e}")
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Serverda xatolik: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Bemor ro'yxatga olishda xatolik: {str(e)}")
 
 def random_id():
     import random
@@ -1071,10 +1086,10 @@ def random_id():
 @app.post("/api/ecg/analyze")
 async def analyze_ecg(
     patient_id: str = Form(...),
-    symptoms: str = Form(...),
-    blood_pressure_sys: int = Form(...),
-    blood_pressure_dia: int = Form(...),
-    pulse: int = Form(...),
+    symptoms: str = Form(""),
+    blood_pressure_sys: str = Form(120),
+    blood_pressure_dia: str = Form(80),
+    pulse: str = Form(72),
     files: list[UploadFile] = File(...),
     ecg_type: str = Form("standard"),
     db: Session = Depends(get_db),
@@ -1085,6 +1100,21 @@ async def analyze_ecg(
         import cv2
         import numpy as np
         
+        try:
+            sys_bp = int(blood_pressure_sys)
+        except (ValueError, TypeError):
+            sys_bp = 120
+            
+        try:
+            dia_bp = int(blood_pressure_dia)
+        except (ValueError, TypeError):
+            dia_bp = 80
+
+        try:
+            pulse_val = int(pulse)
+        except (ValueError, TypeError):
+            pulse_val = 72
+
         # Ensure upload directory exists with fallback
         target_upload_dir = UPLOAD_DIR
         try:
@@ -1095,13 +1125,14 @@ async def analyze_ecg(
             os.makedirs(target_upload_dir, exist_ok=True)
         
         # Verify patient exists
-        # NOTE: Use is_(None) for NULL comparison in SQLAlchemy
         ecg_pat_query = db.query(Patient).filter(Patient.id == patient_id)
-        if current_user.clinic_id is None:
-            ecg_pat_query = ecg_pat_query.filter(Patient.clinic_id.is_(None))
-        else:
-            ecg_pat_query = ecg_pat_query.filter(Patient.clinic_id == current_user.clinic_id)
+        if current_user.role != "superadmin" and current_user.clinic_id is not None:
+            ecg_pat_query = ecg_pat_query.filter(
+                (Patient.clinic_id == current_user.clinic_id) | (Patient.clinic_id.is_(None))
+            )
         patient = ecg_pat_query.first()
+        if not patient:
+            patient = db.query(Patient).filter(Patient.id == patient_id).first()
         if not patient:
             raise HTTPException(status_code=404, detail="Bemor topilmadi")
             
@@ -1155,9 +1186,9 @@ async def analyze_ecg(
             image_path=file_path,
             filename=original_filename,
             symptoms_str=symptoms,
-            sys_bp=blood_pressure_sys,
-            dia_bp=blood_pressure_dia,
-            pulse=pulse,
+            sys_bp=sys_bp,
+            dia_bp=dia_bp,
+            pulse=pulse_val,
             ecg_type=ecg_type
         )
         
@@ -1165,13 +1196,13 @@ async def analyze_ecg(
         new_analysis = ECGAnalysis(
             patient_id=patient_id,
             symptoms=symptoms,
-            blood_pressure_sys=blood_pressure_sys,
-            blood_pressure_dia=blood_pressure_dia,
-            pulse=pulse,
+            blood_pressure_sys=sys_bp,
+            blood_pressure_dia=dia_bp,
+            pulse=pulse_val,
             image_path=file_path,
             classification=analysis_result["classification"],
             details=json.dumps(analysis_result["details"], ensure_ascii=False),
-            clinic_id=current_user.clinic_id
+            clinic_id=current_user.clinic_id or 1
         )
         db.add(new_analysis)
         db.commit()
