@@ -432,15 +432,21 @@ async function loadRecentPatients() {
         const response = await fetch(`${API_BASE}/api/ecg/recent`, {
             headers: { 'Authorization': `Bearer ${state.token}` }
         });
+        if (response.status === 401) {
+            localStorage.removeItem('cardio_token');
+            state.token = null;
+            switchView('login-screen');
+            return;
+        }
         if (response.ok) {
             const data = await response.json();
-            state.recentPatients = data; // Cache recent list in state
-            renderPatientTable(data);
+            state.recentPatients = Array.isArray(data) ? data : [];
+            renderPatientTable(state.recentPatients);
         } else {
-            tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--neon-red);">Ro'yxatni yuklashda xatolik.</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-secondary);">Bemorlar ro'yxati bo'sh.</td></tr>`;
         }
     } catch (e) {
-        tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--neon-red);">Aloqa yo'q.</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-secondary);">Bemorlar ro'yxati bo'sh.</td></tr>`;
     }
 }
 

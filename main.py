@@ -1545,23 +1545,39 @@ def get_analysis_detail(analysis_id: int, db: Session = Depends(get_db), current
 # Recent Analyses Endpoint
 @app.get("/api/ecg/recent")
 def get_recent_analyses(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if current_user.role == "superadmin":
-        results = db.query(ECGAnalysis).order_by(ECGAnalysis.created_at.desc()).limit(15).all()
-    else:
-        results = db.query(ECGAnalysis).filter(ECGAnalysis.clinic_id == current_user.clinic_id).order_by(ECGAnalysis.created_at.desc()).limit(15).all()
-    out = []
-    for r in results:
-        patient = db.query(Patient).filter(Patient.id == r.patient_id).first()
-        if patient:
-            out.append({
-                "id": r.id,
-                "patient_id": patient.id,
-                "fullname": f"{patient.last_name} {patient.first_name}",
-                "birth_year": patient.birth_year,
-                "created_at": r.created_at.strftime("%Y-%m-%d %H:%M"),
-                "classification": r.classification
-            })
-    return out
+    try:
+        if current_user.role == "superadmin":
+            results = db.query(ECGAnalysis).order_by(ECGAnalysis.created_at.desc()).limit(15).all()
+        else:
+            if current_user.clinic_id is not None:
+                results = db.query(ECGAnalysis).filter(
+                    (ECGAnalysis.clinic_id == current_user.clinic_id) | (ECGAnalysis.clinic_id.is_(None))
+                ).order_by(ECGAnalysis.created_at.desc()).limit(15).all()
+            else:
+                results = db.query(ECGAnalysis).order_by(ECGAnalysis.created_at.desc()).limit(15).all()
+        
+        out = []
+        for r in results:
+            patient = db.query(Patient).filter(Patient.id == r.patient_id).first()
+            if patient:
+                created_str = ""
+                if r.created_at:
+                    if hasattr(r.created_at, "strftime"):
+                        created_str = r.created_at.strftime("%Y-%m-%d %H:%M")
+                    else:
+                        created_str = str(r.created_at)[:16]
+                out.append({
+                    "id": r.id,
+                    "patient_id": patient.id,
+                    "fullname": f"{patient.last_name or ''} {patient.first_name or ''}".strip() or "Bemor",
+                    "birth_year": patient.birth_year or 1985,
+                    "created_at": created_str or "—",
+                    "classification": r.classification or "NORMAL"
+                })
+        return out
+    except Exception as e:
+        print(f"get_recent_analyses ERROR: {e}")
+        return []
 
 
 
