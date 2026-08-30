@@ -830,7 +830,7 @@ function setupFormSubmission() {
                 throw new Error(errMsg);
             }
             
-            const patientId = patResult.patient.id;
+            const patientId = (patResult && patResult.patient && patResult.patient.id) ? patResult.patient.id : (patResult ? (patResult.id || patResult.patient_id) : '');
             
             // Step 2: Send ECG image and clinical vitals for Black Box analysis
             await runTelemetryStep('ana-step-2', 1200);
