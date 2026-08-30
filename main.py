@@ -1083,9 +1083,11 @@ def register_patient(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"register_patient ERROR: {e}")
+        import traceback
+        tb = traceback.format_exc()
+        print(f"register_patient ERROR: {e}\n{tb}")
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Bemor ro'yxatga olishda xatolik: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Server xatoligi: {str(e)}")
 
 def random_id():
     import random

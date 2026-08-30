@@ -753,6 +753,13 @@ function setupFormSubmission() {
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         
+        // Check if user is still logged in before doing anything
+        if (!state.token) {
+            alert("Sessiya muddati tugadi. Iltimos, qaytadan tizimga kiring.");
+            switchView('login-screen');
+            return;
+        }
+        
         if (!state.selectedFiles || state.selectedFiles.length === 0) {
             alert("Iltimos, EKG tasvirini yuklang!");
             return;
@@ -822,16 +829,18 @@ function setupFormSubmission() {
                 return;
             }
             
-            const patResult = await patResponse.json();
+            const patResult = await patResponse.json().catch(() => ({}));
             
             if (!patResponse.ok || patResult.status !== 'success') {
-                let errMsg = "Bemor ro'yxatga olishda xatolik yuz berdi";
+                let errMsg = "Serverdan kutilmagan javob (" + patResponse.status + ")";
                 if (typeof patResult.detail === 'string') {
                     errMsg = patResult.detail;
                 } else if (Array.isArray(patResult.detail) && patResult.detail.length > 0) {
                     errMsg = patResult.detail.map(d => d.msg || JSON.stringify(d)).join('; ');
                 } else if (patResult.message) {
                     errMsg = patResult.message;
+                } else if (patResult.error) {
+                    errMsg = patResult.error;
                 }
                 throw new Error(errMsg);
             }
