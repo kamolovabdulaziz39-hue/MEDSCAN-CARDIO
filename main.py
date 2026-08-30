@@ -699,6 +699,15 @@ app.add_middleware(
 )
 
 @app.middleware("http")
+async def disable_static_caching_middleware(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path.endswith(".js") or request.url.path.endswith(".html") or request.url.path == "/":
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
+@app.middleware("http")
 async def active_defense_middleware(request: Request, call_next):
     ip = get_client_ip(request)
     path = request.url.path
@@ -1054,7 +1063,7 @@ def register_patient(
             district=district or current_user.district,
             village=village or current_user.village,
             street=street or current_user.street,
-            clinic_id=current_user.clinic_id or 1
+            clinic_id=current_user.clinic_id
         )
         db.add(new_patient)
         db.commit()
@@ -1202,7 +1211,7 @@ async def analyze_ecg(
             image_path=file_path,
             classification=analysis_result["classification"],
             details=json.dumps(analysis_result["details"], ensure_ascii=False),
-            clinic_id=current_user.clinic_id or 1
+            clinic_id=current_user.clinic_id
         )
         db.add(new_analysis)
         db.commit()
