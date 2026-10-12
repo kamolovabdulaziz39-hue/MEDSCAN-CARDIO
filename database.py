@@ -1,6 +1,6 @@
 import datetime
 import random
-from sqlalchemy import create_engine, Column, Integer, String, Text, ForeignKey, DateTime, event
+from sqlalchemy import create_engine, Column, Integer, String, Text, ForeignKey, DateTime, Float, event
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -33,16 +33,36 @@ TrapSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=trap_eng
 Base = declarative_base()
 
 
+def get_uzbekistan_time():
+    return datetime.datetime.utcnow() + datetime.timedelta(hours=5)
+
 class Clinic(Base):
     __tablename__ = "clinics"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
     inn = Column(String, nullable=True, index=True)          # INN (ИНН) клиники
+    address = Column(String, nullable=True)                  # Адрес / улица
     status = Column(String, default="active")               # 'active', 'blocked'
-    payment_status = Column(String, default="paid")         # 'paid', 'unpaid'
+    payment_status = Column(String, default="paid")         # 'paid', 'unpaid', 'pending'
+    subscription_fee = Column(Float, default=300.0)         # $300 в месяц
     scan_limit = Column(Integer, default=500)               # Лимит сканирований в месяц
     contact_phone = Column(String, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.datetime.utcnow() + datetime.timedelta(hours=5))
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=get_uzbekistan_time)
+
+class Payment(Base):
+    """Оплаты клиник: $300 в месяц за пользование платформой."""
+    __tablename__ = "payments"
+    id = Column(Integer, primary_key=True, index=True)
+    clinic_id = Column(Integer, ForeignKey("clinics.id"), index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    amount = Column(Float, default=300.0)                   # 300 USD в месяц
+    currency = Column(String, default="USD")
+    period_months = Column(Integer, default=1)
+    status = Column(String, default="paid")                 # 'paid', 'pending', 'cancelled'
+    payment_method = Column(String, default="Bank/Card")
+    description = Column(String, default="MedScan Cardio oylik obuna to'lovi ($300)")
+    paid_at = Column(DateTime, default=get_uzbekistan_time)
 
 class ClinicApplication(Base):
     """Заявки на подключение клиник (onboarding). Статус: pending -> active после одобрения SuperAdmin."""
@@ -57,7 +77,7 @@ class ClinicApplication(Base):
     comment = Column(Text, nullable=True)                  # Дополнительная информация
     status = Column(String, default="pending")             # 'pending', 'active', 'rejected'
     clinic_id = Column(Integer, ForeignKey("clinics.id"), nullable=True)  # Заполняется после одобрения
-    created_at = Column(DateTime, default=lambda: datetime.datetime.utcnow() + datetime.timedelta(hours=5))
+    created_at = Column(DateTime, default=get_uzbekistan_time)
     reviewed_at = Column(DateTime, nullable=True)          # Дата решения SuperAdmin
 
 class User(Base):
@@ -71,13 +91,13 @@ class User(Base):
     street = Column(String, nullable=True)  # Ko'cha
     first_name = Column(String, nullable=True)
     last_name = Column(String, nullable=True)
+    middle_name = Column(String, nullable=True) # Отчество
     birth_date = Column(String, nullable=True)  # YYYY-MM-DD format
+    birth_year = Column(Integer, nullable=True) # Год рождения
     is_admin = Column(Integer, default=0)
     role = Column(String, default="doctor")  # 'superadmin', 'clinicadmin', 'doctor'
     clinic_id = Column(Integer, ForeignKey("clinics.id"), index=True, nullable=True)
-
-def get_uzbekistan_time():
-    return datetime.datetime.utcnow() + datetime.timedelta(hours=5)
+    is_active = Column(Integer, default=1)   # 1 = фаол, 0 = деактивирован владельцем клиники
 
 class Patient(Base):
     __tablename__ = "patients"
@@ -107,6 +127,7 @@ class ECGAnalysis(Base):
     details = Column(Text)  # JSON details of ECG findings
     created_at = Column(DateTime, default=get_uzbekistan_time)
     clinic_id = Column(Integer, ForeignKey("clinics.id"), index=True, nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=True) # Доктор/сотрудник, проведший анализ
 
 class BlockedIP(Base):
     __tablename__ = "blocked_ips"
@@ -358,6 +379,9 @@ def migrate_db_schema(db_file):
         cursor.execute("PRAGMA table_info(users)")
         existing_user_cols = [col[1] for col in cursor.fetchall()]
         user_new_cols = {
+            "middle_name": "TEXT",
+            "birth_year": "INTEGER",
+            "is_active": "INTEGER DEFAULT 1",
             "district": "TEXT",
             "village": "TEXT",
             "street": "TEXT",
@@ -391,18 +415,49 @@ def migrate_db_schema(db_file):
         if "clinic_id" not in existing_ecg_cols:
             cursor.execute("ALTER TABLE ecg_analyses ADD COLUMN clinic_id INTEGER REFERENCES clinics(id)")
             print(f"Added column clinic_id to ecg_analyses table in {db_file}.")
+        if "user_id" not in existing_ecg_cols:
+            cursor.execute("ALTER TABLE ecg_analyses ADD COLUMN user_id INTEGER REFERENCES users(id)")
+            print(f"Added column user_id to ecg_analyses table in {db_file}.")
 
-        # 5. Migrate clinics table — add inn and scan_limit if missing
+        # 5. Migrate clinics table — add inn, address, subscription_fee, scan_limit, owner_id
         cursor.execute("PRAGMA table_info(clinics)")
         existing_clinic_cols = [col[1] for col in cursor.fetchall()]
         if "inn" not in existing_clinic_cols:
             cursor.execute("ALTER TABLE clinics ADD COLUMN inn TEXT")
             print(f"Added column inn to clinics table in {db_file}.")
+        if "address" not in existing_clinic_cols:
+            cursor.execute("ALTER TABLE clinics ADD COLUMN address TEXT")
+            print(f"Added column address to clinics table in {db_file}.")
+        if "subscription_fee" not in existing_clinic_cols:
+            cursor.execute("ALTER TABLE clinics ADD COLUMN subscription_fee REAL DEFAULT 300.0")
+            print(f"Added column subscription_fee to clinics table in {db_file}.")
+        if "owner_id" not in existing_clinic_cols:
+            cursor.execute("ALTER TABLE clinics ADD COLUMN owner_id INTEGER REFERENCES users(id)")
+            print(f"Added column owner_id to clinics table in {db_file}.")
         if "scan_limit" not in existing_clinic_cols:
             cursor.execute("ALTER TABLE clinics ADD COLUMN scan_limit INTEGER DEFAULT 500")
             print(f"Added column scan_limit to clinics table in {db_file}.")
 
-        # 6. Create clinic_applications table if not exists
+        # 6. Create payments table if not exists
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='payments'")
+        if not cursor.fetchone():
+            cursor.execute("""
+                CREATE TABLE payments (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    clinic_id INTEGER REFERENCES clinics(id),
+                    user_id INTEGER REFERENCES users(id),
+                    amount REAL DEFAULT 300.0,
+                    currency TEXT DEFAULT 'USD',
+                    period_months INTEGER DEFAULT 1,
+                    status TEXT DEFAULT 'paid',
+                    payment_method TEXT DEFAULT 'Bank/Card',
+                    description TEXT DEFAULT 'MedScan Cardio oylik obuna to''lovi ($300)',
+                    paid_at DATETIME
+                )
+            """)
+            print(f"Created payments table in {db_file}.")
+
+        # 7. Create clinic_applications table if not exists
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='clinic_applications'")
         if not cursor.fetchone():
             cursor.execute("""
@@ -423,10 +478,12 @@ def migrate_db_schema(db_file):
             """)
             print(f"Created clinic_applications table in {db_file}.")
 
-        # 7. Populate values
+        # 8. Populate values
         cursor.execute("UPDATE users SET role = 'superadmin' WHERE is_admin = 1")
         cursor.execute("UPDATE users SET role = 'doctor' WHERE role IS NULL")
+        cursor.execute("UPDATE users SET is_active = 1 WHERE is_active IS NULL")
         cursor.execute("UPDATE users SET clinic_id = 1 WHERE clinic_id IS NULL AND role != 'superadmin'")
+        cursor.execute("UPDATE clinics SET subscription_fee = 300.0 WHERE subscription_fee IS NULL")
         cursor.execute("UPDATE patients SET clinic_id = 1 WHERE clinic_id IS NULL")
         cursor.execute("UPDATE ecg_analyses SET clinic_id = 1 WHERE clinic_id IS NULL")
         
@@ -443,13 +500,16 @@ def init_db():
     # Run schema migrations
     migrate_db_schema("cardio_ai.db")
     migrate_db_schema("cardio_ai_trap.db")
+    if DATABASE_URL.startswith("sqlite:///"):
+        real_db_path = DATABASE_URL.replace("sqlite:////", "/").replace("sqlite:///", "")
+        if os.path.exists(real_db_path) and real_db_path not in ["cardio_ai.db", "cardio_ai_trap.db"]:
+            migrate_db_schema(real_db_path)
     
     # Seed DB_TRAP if empty
     seed_trap_db()
     
     # SQLite schema migration check and adjustments for dates
     import sqlite3
-    import os
     db_file = "cardio_ai.db"
     if os.path.exists(db_file):
         try:
@@ -743,6 +803,21 @@ def init_db():
             db.commit()
             print("Mock data seeded successfully!")
             
+        # Seed initial payments for existing clinics if none exist
+        if db.query(Payment).count() == 0:
+            for c in db.query(Clinic).all():
+                db.add(Payment(
+                    clinic_id=c.id,
+                    user_id=c.owner_id,
+                    amount=300.0,
+                    currency="USD",
+                    period_months=1,
+                    status="paid",
+                    payment_method="Bank Transfer / Payme",
+                    description=f"'{c.name}' klinikasi uchun oylik abonent to'lovi ($300)",
+                    paid_at=c.created_at or get_uzbekistan_time()
+                ))
+            db.commit()
     finally:
         db.close()
 

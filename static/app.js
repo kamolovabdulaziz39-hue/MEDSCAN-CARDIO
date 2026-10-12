@@ -50,6 +50,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // 1. AUTHENTICATION & LOGIN FLOW
 function initAuth() {
+    // Populate public clinics dropdown for staff registration
+    async function loadPublicClinics() {
+        const clinicSelect = document.getElementById('register-clinic-id');
+        if (!clinicSelect) return;
+        try {
+            const res = await fetch(`${API_BASE}/api/public/clinics`);
+            const data = await res.json();
+            if (res.ok && data.clinics) {
+                clinicSelect.innerHTML = '<option value="">Klinikangizni tanlang...</option>';
+                data.clinics.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.textContent = `${c.name} (${c.address || c.inn || 'Faol'})`;
+                    clinicSelect.appendChild(opt);
+                });
+            }
+        } catch (e) {
+            console.error("Public clinics load error", e);
+        }
+    }
+    loadPublicClinics();
+
     // Toggle between login and registration forms
     const toggleToLogin = document.getElementById('toggle-to-login');
     const toggleToRegister = document.getElementById('toggle-to-register');
@@ -63,6 +85,7 @@ function initAuth() {
         toggleToRegister.addEventListener('click', () => {
             loginFormElem.classList.add('hide');
             registerFormElem.classList.remove('hide');
+            loadPublicClinics();
         });
     }
 
@@ -73,8 +96,10 @@ function initAuth() {
             e.preventDefault();
             const errorBox = document.getElementById('register-error');
             errorBox.classList.add('hide');
+            const clinicId = document.getElementById('register-clinic-id') ? document.getElementById('register-clinic-id').value : '';
             const firstName = document.getElementById('register-first-name').value.trim();
             const lastName = document.getElementById('register-last-name').value.trim();
+            const middleName = document.getElementById('register-middle-name') ? document.getElementById('register-middle-name').value.trim() : '';
             const phone = document.getElementById('register-phone').value.trim();
             const passcode = document.getElementById('register-passcode').value.trim();
             const region = document.getElementById('register-region').value;
@@ -86,8 +111,11 @@ function initAuth() {
             const day = document.getElementById('register-birth-day').value;
             const birthDate = `${year}-${month.padStart(2,'0')}-${day.padStart(2,'0')}`;
             const formData = new FormData();
+            formData.append('clinic_id', clinicId);
             formData.append('first_name', firstName);
             formData.append('last_name', lastName);
+            formData.append('middle_name', middleName);
+            formData.append('birth_year', year);
             formData.append('phone', phone);
             formData.append('passcode', passcode);
             formData.append('region', region);
@@ -2557,50 +2585,95 @@ window.loadSuperAdminDashboard = async function() {
 
 window.loadClinicAdminDashboard = async function() {
     try {
+        // 1. Load Clinic profile details ($300/mo subscription status, INN, Address)
+        const myClinicRes = await fetch(`${API_BASE}/api/clinicadmin/my-clinic`, {
+            headers: { 'Authorization': `Bearer ${state.token}` }
+        });
+        const myClinicData = await myClinicRes.json();
+        if (myClinicRes.ok && myClinicData.status === 'success' && myClinicData.clinic) {
+            const cl = myClinicData.clinic;
+            const nameEl = document.getElementById('clinic-panel-name');
+            const innEl = document.getElementById('clinic-panel-inn');
+            const addrEl = document.getElementById('clinic-panel-address');
+            const phoneEl = document.getElementById('clinic-panel-phone');
+            const docsCountEl = document.getElementById('clinic-header-doctors');
+            const feeEl = document.getElementById('clinic-header-fee');
+            if (nameEl) nameEl.textContent = cl.name;
+            if (innEl) innEl.innerHTML = `<i class="fa-solid fa-id-card"></i> INN: <b>${cl.inn || '—'}</b>`;
+            if (addrEl) addrEl.innerHTML = `<i class="fa-solid fa-location-dot"></i> Manzil: <b>${cl.address || '—'}</b>`;
+            if (phoneEl) phoneEl.innerHTML = `<i class="fa-solid fa-phone"></i> Tel: <b>${cl.contact_phone || '—'}</b>`;
+            if (docsCountEl) docsCountEl.textContent = cl.total_doctors || 0;
+            if (feeEl) feeEl.textContent = `$${cl.subscription_fee || 300}`;
+        }
+
+        // 2. Load Clinic summary reports
         const reportsRes = await fetch(`${API_BASE}/api/clinicadmin/reports`, {
             headers: { 'Authorization': `Bearer ${state.token}` }
         });
         const reports = await reportsRes.json();
         if (reportsRes.ok && reports.status === 'success') {
-            document.getElementById('clinic-stat-scans').textContent = reports.total_scans;
-            document.getElementById('clinic-stat-infarct').textContent = reports.infarctions;
-            document.getElementById('clinic-stat-ischemia').textContent = reports.ischemia + reports.arrhythmia;
-            document.getElementById('clinic-stat-normal').textContent = reports.normal;
+            const scansEl = document.getElementById('clinic-stat-scans');
+            const infarctEl = document.getElementById('clinic-stat-infarct');
+            const ischEl = document.getElementById('clinic-stat-ischemia');
+            const normEl = document.getElementById('clinic-stat-normal');
+            if (scansEl) scansEl.textContent = reports.total_scans;
+            if (infarctEl) infarctEl.textContent = reports.infarctions;
+            if (ischEl) ischEl.textContent = (reports.ischemia || 0) + (reports.arrhythmia || 0);
+            if (normEl) normEl.textContent = reports.normal;
         }
 
+        // 3. Load Staff / Doctors with real performance (uspevaemost)
         const docsRes = await fetch(`${API_BASE}/api/clinicadmin/doctors`, {
             headers: { 'Authorization': `Bearer ${state.token}` }
         });
         const docsData = await docsRes.json();
         if (docsRes.ok && docsData.status === 'success') {
             const tbody = document.getElementById('clinicadmin-doctors-table-body');
-            tbody.innerHTML = '';
-            
-            const performanceMap = {};
-            if (reports.performance) {
-                reports.performance.forEach(p => {
-                    performanceMap[p.phone] = p.scans_count;
+            if (tbody) {
+                tbody.innerHTML = '';
+                const doctors = docsData.doctors || [];
+                if (!doctors.length) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-secondary);"><i class="fa-solid fa-user-doctor"></i> Hozircha shifokorlar mavjud emas</td></tr>';
+                    return;
+                }
+
+                doctors.forEach(d => {
+                    const tr = document.createElement('tr');
+                    const fullName = `${d.last_name} ${d.first_name}${d.middle_name ? ' ' + d.middle_name : ''}`;
+                    const isActive = d.is_active !== 0;
+                    const statusBadge = isActive 
+                        ? `<span class="badge" style="background:rgba(16,185,129,0.15);color:var(--neon-green);padding:3px 8px;border-radius:10px;font-size:0.75rem;"><i class="fa-solid fa-check"></i> Faol</span>`
+                        : `<span class="badge" style="background:rgba(239,68,68,0.15);color:var(--neon-red);padding:3px 8px;border-radius:10px;font-size:0.75rem;"><i class="fa-solid fa-ban"></i> Chetlatilgan</span>`;
+
+                    // Escape quotes for onclick inline JSON
+                    const docObjStr = JSON.stringify(d).replace(/"/g, '&quot;');
+
+                    tr.innerHTML = `
+                        <td><strong>${fullName}</strong></td>
+                        <td>${d.phone}</td>
+                        <td>${d.birth_year || '—'}</td>
+                        <td><b style="color:var(--neon-cyan);"><i class="fa-solid fa-heart-pulse"></i> ${d.scans_count || 0} ta</b></td>
+                        <td><b style="color:var(--neon-red);"><i class="fa-solid fa-triangle-exclamation"></i> ${d.infarction_alerts || 0} ta</b></td>
+                        <td>${statusBadge}</td>
+                        <td style="text-align: center; white-space: nowrap;">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="openEditDoctorModal(${docObjStr})" style="padding: 4px 8px; margin-right: 4px; font-size: 0.8rem;">
+                                <i class="fa-solid fa-user-pen"></i> Tahrirlash
+                            </button>
+                            ${isActive ? `
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="deleteDoctor(${d.id}, '${d.last_name} ${d.first_name}')" style="padding: 4px 8px; color: var(--danger-color); border-color: var(--danger-color); font-size: 0.8rem;">
+                                    <i class="fa-solid fa-user-xmark"></i> Chetlatish
+                                </button>
+                            ` : `
+                                <span style="font-size:0.75rem;color:var(--text-secondary);">Chetlatilgan</span>
+                            `}
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
                 });
             }
-
-            docsData.doctors.forEach(d => {
-                const tr = document.createElement('tr');
-                const scans = performanceMap[d.phone] || 0;
-                tr.innerHTML = `
-                    <td><strong>${d.last_name} ${d.first_name}</strong></td>
-                    <td>${d.phone}</td>
-                    <td>${scans}</td>
-                    <td style="text-align: center;">
-                        <button class="btn btn-secondary btn-sm" onclick="deleteDoctor(${d.id})" style="padding: 4px 8px; color: var(--danger-color); border-color: var(--danger-color);">
-                            <i class="fa-solid fa-trash-can"></i> O'chirish
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
         }
     } catch (err) {
-        console.error(err);
+        console.error("loadClinicAdminDashboard error:", err);
     }
 };
 
@@ -2608,12 +2681,16 @@ window.handleClinicAddDoctor = async function(event) {
     event.preventDefault();
     const firstName = document.getElementById('doc-first-name').value.trim();
     const lastName = document.getElementById('doc-last-name').value.trim();
+    const middleName = document.getElementById('doc-middle-name') ? document.getElementById('doc-middle-name').value.trim() : '';
+    const birthYear = document.getElementById('doc-birth-year') ? document.getElementById('doc-birth-year').value.trim() : '1985';
     const phone = document.getElementById('doc-phone').value.trim();
     const passcode = document.getElementById('doc-passcode').value.trim();
 
     const formData = new FormData();
     formData.append('first_name', firstName);
     formData.append('last_name', lastName);
+    formData.append('middle_name', middleName);
+    formData.append('birth_year', birthYear);
     formData.append('phone', phone);
     formData.append('passcode', passcode);
 
@@ -2637,14 +2714,78 @@ window.handleClinicAddDoctor = async function(event) {
     }
 };
 
-window.deleteDoctor = async function(doctorId) {
+window.openEditDoctorModal = function(d) {
+    const modal = document.getElementById('clinic-edit-doctor-modal');
+    if (!modal) return;
+    document.getElementById('edit-doc-id').value = d.id;
+    document.getElementById('edit-doc-last-name').value = d.last_name || '';
+    document.getElementById('edit-doc-first-name').value = d.first_name || '';
+    document.getElementById('edit-doc-middle-name').value = d.middle_name || '';
+    document.getElementById('edit-doc-birth-year').value = d.birth_year || '';
+    document.getElementById('edit-doc-phone').value = d.phone || '';
+    document.getElementById('edit-doc-passcode').value = '';
+    modal.classList.remove('hide');
+};
+
+window.hideEditDoctorModal = function() {
+    const modal = document.getElementById('clinic-edit-doctor-modal');
+    if (modal) modal.classList.add('hide');
+};
+
+window.handleClinicUpdateDoctor = async function(event) {
+    event.preventDefault();
+    const docId = document.getElementById('edit-doc-id').value;
+    const lastName = document.getElementById('edit-doc-last-name').value.trim();
+    const firstName = document.getElementById('edit-doc-first-name').value.trim();
+    const middleName = document.getElementById('edit-doc-middle-name').value.trim();
+    const birthYear = document.getElementById('edit-doc-birth-year').value.trim();
+    const phone = document.getElementById('edit-doc-phone').value.trim();
+    const passcode = document.getElementById('edit-doc-passcode').value.trim();
+
+    const fd = new FormData();
+    fd.append('last_name', lastName);
+    fd.append('first_name', firstName);
+    fd.append('middle_name', middleName);
+    fd.append('birth_year', birthYear);
+    fd.append('phone', phone);
+    if (passcode) {
+        fd.append('passcode', passcode);
+    }
+
+    try {
+        const res = await fetch(`${API_BASE}/api/clinicadmin/doctors/${docId}`, {
+            method: 'PUT',
+            headers: { 'Authorization': `Bearer ${state.token}` },
+            body: fd
+        });
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+            alert(data.message || "Xodim ma'lumotlari muvaffaqiyatli yangilandi!");
+            hideEditDoctorModal();
+            loadClinicAdminDashboard();
+        } else {
+            alert(data.detail || "Xatolik yuz berdi");
+        }
+    } catch (err) {
+        console.error(err);
+        alert("Serverga ulanib bo'lmadi");
+    }
+};
+
+window.deleteDoctor = async function(doctorId, docName) {
+    const confirmMsg = `Haqiqatan ham '${docName || "bu xodim"}'ni tizimdan chetlatmoqchimisiz?\n\nDIQQAT: Xodimning o'tkazgan barcha EKG tahlillari va kardiologik yozuvlari (uspevaemost) klinikada 100% to'liq saqlanadi (o'chirilmaydi).`;
+    if (!confirm(confirmMsg)) return;
+
     try {
         const response = await fetch(`${API_BASE}/api/clinicadmin/doctors/${doctorId}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${state.token}` }
         });
         const result = await response.json();
-        if (!response.ok) {
+        if (response.ok && result.status === 'success') {
+            alert(result.message || "Xodim chetlatildi. Barcha tahlillar saqlab qolindi.");
+            loadClinicAdminDashboard();
+        } else {
             alert(result.detail || "Xatolik yuz berdi");
         }
     } catch (err) {

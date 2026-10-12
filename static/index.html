@@ -39,13 +39,23 @@
                 </div>
                 <div id="login-error" class="error-msg hide"></div>
                 <button type="submit" class="btn btn-primary btn-block">Tizimga Kirish <i class="fa-solid fa-arrow-right-to-bracket"></i></button>
+                <a href="/register-clinic" class="btn btn-block" style="background: linear-gradient(135deg, #10b981, #06b6d4); color: white; font-weight: 700; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 12px; padding: 12px; border-radius: 8px; box-shadow: 0 4px 15px rgba(16,185,129,0.3); font-size: 0.95rem;">
+                    <i class="fa-solid fa-briefcase"></i> Klinika / Biznesni ulash ($300 / oy)
+                </a>
             </form>
             <!-- Register Form -->
             <form id="register-form" class="auth-form hide">
-                <div class="input-group"><label><i class="fa-solid fa-user"></i> Ism</label><input type="text" id="register-first-name" placeholder="Ismingiz" required></div>
-                <div class="input-group"><label><i class="fa-solid fa-user"></i> Familiya</label><input type="text" id="register-last-name" placeholder="Familiyangiz" required></div>
-                <div class="input-group"><label><i class="fa-solid fa-phone"></i> Telefon raqam</label><input type="text" id="register-phone" placeholder="+998901234567" required></div>
-                <div class="input-group"><label><i class="fa-solid fa-lock"></i> Parol</label><input type="password" id="register-passcode" placeholder="••••" maxlength="32" required></div>
+                <div class="input-group">
+                    <label for="register-clinic-id"><i class="fa-solid fa-hospital"></i> Klinika / Medpunktni tanlang *</label>
+                    <select id="register-clinic-id" required>
+                        <option value="">Klinikangizni tanlang...</option>
+                    </select>
+                </div>
+                <div class="input-group"><label><i class="fa-solid fa-user"></i> Ism *</label><input type="text" id="register-first-name" placeholder="Ismingiz" required></div>
+                <div class="input-group"><label><i class="fa-solid fa-user"></i> Familiya *</label><input type="text" id="register-last-name" placeholder="Familiyangiz" required></div>
+                <div class="input-group"><label><i class="fa-solid fa-user"></i> Otasining ismi (Отчество)</label><input type="text" id="register-middle-name" placeholder="Otasining ismi"></div>
+                <div class="input-group"><label><i class="fa-solid fa-phone"></i> Telefon raqam *</label><input type="text" id="register-phone" placeholder="+998901234567" required></div>
+                <div class="input-group"><label><i class="fa-solid fa-lock"></i> Parol *</label><input type="password" id="register-passcode" placeholder="••••" maxlength="32" required></div>
                 <div class="input-group">
                     <label for="register-region"><i class="fa-solid fa-map-location-dot"></i> Viloyat / Shahar</label>
                     <select id="register-region" required>
@@ -558,6 +568,31 @@
 
             <!-- CLINICADMIN VIEW -->
             <div id="clinicadmin-view" class="app-view hide">
+                <!-- Clinic Profile Card -->
+                <div class="clinic-info-card" style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; padding: 24px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 6px;">
+                            <h2 id="clinic-panel-name" style="font-size: 1.4rem; font-weight: 800; color: #fff;">Klinika Boshqaruvi</h2>
+                            <span id="clinic-panel-badge" class="badge" style="background: rgba(16,185,129,0.15); color: var(--neon-green); padding: 4px 12px; border-radius: 12px; font-size: 0.8rem; font-weight: 700;"><i class="fa-solid fa-circle-check"></i> $300/oy Obuna Faol</span>
+                        </div>
+                        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px;">
+                            <span id="clinic-panel-inn"><i class="fa-solid fa-id-card"></i> INN: —</span> &bull; 
+                            <span id="clinic-panel-address"><i class="fa-solid fa-location-dot"></i> Manzil: —</span> &bull; 
+                            <span id="clinic-panel-phone"><i class="fa-solid fa-phone"></i> Tel: —</span>
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 12px; padding: 12px 20px; text-align: center; min-width: 100px;">
+                            <div style="font-size: 1.4rem; font-weight: 800; color: var(--neon-cyan);" id="clinic-header-doctors">0</div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary);">Shifokorlar</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 12px; padding: 12px 20px; text-align: center; min-width: 100px;">
+                            <div style="font-size: 1.4rem; font-weight: 800; color: var(--neon-green);" id="clinic-header-fee">$300</div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary);">Oylik obuna</div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="stats-overview-grid">
                     <div class="stat-card"><div class="stat-icon purple"><i class="fa-solid fa-heart-pulse"></i></div><div class="stat-info"><h4 id="clinic-stat-scans">0</h4><p>Jami skanlar</p></div></div>
                     <div class="stat-card stat-infarction"><div class="stat-icon red"><i class="fa-solid fa-circle-exclamation"></i></div><div class="stat-info"><h4 id="clinic-stat-infarct">0</h4><p>O'tkir infarkt holatlari</p></div></div>
@@ -567,44 +602,62 @@
 
                 <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 30px; margin-top: 30px;" class="clinic-grid-responsive">
                     <div class="recent-patients-card">
-                        <h3><i class="fa-solid fa-user-doctor"></i> Klinikadagi shifokorlar</h3>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <h3><i class="fa-solid fa-user-doctor"></i> Klinikadagi shifokorlar va tahlillar ko'rsatkichi</h3>
+                        </div>
                         <div class="table-responsive" style="margin-top: 15px;">
                             <table class="data-table">
                                 <thead>
                                     <tr>
-                                        <th>Shifokor ismi</th>
-                                        <th>Telefon raqami</th>
-                                        <th>Skanlar soni</th>
+                                        <th>Shifokor F.I.O</th>
+                                        <th>Telefon</th>
+                                        <th>Tug'ilgan yili</th>
+                                        <th style="color: var(--neon-cyan);">Uspevaemost (EKG)</th>
+                                        <th style="color: var(--neon-red);">Infarktlar</th>
+                                        <th>Holati</th>
                                         <th style="text-align: center;">Amallar</th>
                                     </tr>
                                 </thead>
                                 <tbody id="clinicadmin-doctors-table-body">
-                                    <tr><td colspan="4" style="text-align:center">Shifokorlar yuklanmoqda...</td></tr>
+                                    <tr><td colspan="7" style="text-align:center">Shifokorlar yuklanmoqda...</td></tr>
                                 </tbody>
                             </table>
+                        </div>
+                        <!-- Security & Performance guarantee badge -->
+                        <div style="margin-top: 18px; padding: 14px 18px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 12px; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;">
+                            <i class="fa-solid fa-shield-halved" style="color: var(--neon-cyan); margin-right: 8px;"></i>
+                            <b style="color: #fff;">Kafolatlangan xavfsizlik:</b> Xodim tizimdan o'chirilganda ham, uning barcha o'tkazgan EKG tahlillari va bemorlar bazasi klinikada abadiy saqlanib qoladi. Xodimning muvaffaqiyatli tahlillari (uspevaemost) aslo o'chirilmaydi.
                         </div>
                     </div>
 
                     <div class="recent-patients-card">
-                        <h3><i class="fa-solid fa-plus-minus"></i> Yangi shifokor qo'shish</h3>
+                        <h3><i class="fa-solid fa-user-plus"></i> Yangi shifokor qo'shish</h3>
                         <form id="clinic-add-doctor-form" onsubmit="handleClinicAddDoctor(event)" style="margin-top: 15px; display: flex; flex-direction: column; gap: 12px;">
                             <div class="form-group">
-                                <label>Ismi</label>
+                                <label>Ismi *</label>
                                 <input type="text" id="doc-first-name" required placeholder="Ism..." style="background: #fff; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 10px; width: 100%; outline: none; font-family: inherit;">
                             </div>
                             <div class="form-group">
-                                <label>Familiyasi</label>
+                                <label>Familiyasi *</label>
                                 <input type="text" id="doc-last-name" required placeholder="Familiya..." style="background: #fff; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 10px; width: 100%; outline: none; font-family: inherit;">
                             </div>
                             <div class="form-group">
-                                <label>Telefon raqami</label>
+                                <label>Otasining ismi (Отчество)</label>
+                                <input type="text" id="doc-middle-name" placeholder="Otasining ismi..." style="background: #fff; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 10px; width: 100%; outline: none; font-family: inherit;">
+                            </div>
+                            <div class="form-group">
+                                <label>Tug'ilgan yili *</label>
+                                <input type="number" id="doc-birth-year" min="1940" max="2010" value="1985" required style="background: #fff; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 10px; width: 100%; outline: none; font-family: inherit;">
+                            </div>
+                            <div class="form-group">
+                                <label>Telefon raqami *</label>
                                 <input type="text" id="doc-phone" required placeholder="+998901234567" style="background: #fff; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 10px; width: 100%; outline: none; font-family: inherit;">
                             </div>
                             <div class="form-group">
-                                <label>Parol / PIN</label>
+                                <label>Parol / PIN *</label>
                                 <input type="password" id="doc-passcode" required placeholder="Parol..." style="background: #fff; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 10px; width: 100%; outline: none; font-family: inherit;">
                             </div>
-                            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">Qo'shish</button>
+                            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;"><i class="fa-solid fa-plus"></i> Shifokorni qo'shish</button>
                         </form>
                     </div>
                 </div>
@@ -746,6 +799,47 @@
                 <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
                     <button type="button" onclick="hideCreateClinicModal()" class="btn btn-secondary" style="padding: 10px 20px;">Bekor qilish</button>
                     <button type="submit" class="btn btn-primary" style="padding: 10px 20px;">Qo'shish</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- CLINIC EDIT DOCTOR MODAL -->
+    <div id="clinic-edit-doctor-modal" class="modal hide" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(8px);">
+        <div class="modal-content" style="background: #FFFFFF; border: 1px solid var(--border-color); padding: 25px; border-radius: 20px; width: 90%; max-width: 480px; box-shadow: 0 15px 30px rgba(0,0,0,0.3); color: var(--text-primary);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0; font-size: 1.2rem; font-weight: 600;"><i class="fa-solid fa-user-pen"></i> Shifokor ma'lumotlarini tahrirlash</h3>
+                <button type="button" onclick="hideEditDoctorModal()" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-secondary);"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="clinic-edit-doctor-form" onsubmit="handleClinicUpdateDoctor(event)" style="display: flex; flex-direction: column; gap: 12px;">
+                <input type="hidden" id="edit-doc-id">
+                <div>
+                    <label style="font-size: 0.8rem; color: var(--text-secondary);">Familiyasi *</label>
+                    <input type="text" id="edit-doc-last-name" required style="background: #fff; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 10px; width: 100%; margin-top: 4px; outline: none; font-family: inherit;">
+                </div>
+                <div>
+                    <label style="font-size: 0.8rem; color: var(--text-secondary);">Ismi *</label>
+                    <input type="text" id="edit-doc-first-name" required style="background: #fff; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 10px; width: 100%; margin-top: 4px; outline: none; font-family: inherit;">
+                </div>
+                <div>
+                    <label style="font-size: 0.8rem; color: var(--text-secondary);">Otasining ismi (Отчество)</label>
+                    <input type="text" id="edit-doc-middle-name" placeholder="Otasining ismi..." style="background: #fff; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 10px; width: 100%; margin-top: 4px; outline: none; font-family: inherit;">
+                </div>
+                <div>
+                    <label style="font-size: 0.8rem; color: var(--text-secondary);">Tug'ilgan yili</label>
+                    <input type="number" id="edit-doc-birth-year" min="1940" max="2010" style="background: #fff; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 10px; width: 100%; margin-top: 4px; outline: none; font-family: inherit;">
+                </div>
+                <div>
+                    <label style="font-size: 0.8rem; color: var(--text-secondary);">Telefon raqami *</label>
+                    <input type="text" id="edit-doc-phone" required style="background: #fff; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 10px; width: 100%; margin-top: 4px; outline: none; font-family: inherit;">
+                </div>
+                <div>
+                    <label style="font-size: 0.8rem; color: var(--text-secondary);">Yangi parol (o'zgartirish shart bo'lmasa bo'sh qoldiring)</label>
+                    <input type="password" id="edit-doc-passcode" placeholder="Yangi parol..." style="background: #fff; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); padding: 10px; width: 100%; margin-top: 4px; outline: none; font-family: inherit;">
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
+                    <button type="button" onclick="hideEditDoctorModal()" class="btn btn-secondary" style="padding: 10px 20px;">Bekor qilish</button>
+                    <button type="submit" class="btn btn-primary" style="padding: 10px 20px;">Saqlash</button>
                 </div>
             </form>
         </div>

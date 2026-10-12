@@ -122,13 +122,13 @@ tr:hover td{background:var(--surface2)}
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);
   display:flex;align-items:center;justify-content:center;z-index:500;display:none}
 .modal{background:var(--surface);border:1px solid var(--border);border-radius:20px;
-  padding:32px;max-width:420px;width:90%}
+  padding:32px;max-width:440px;width:90%}
 .modal h3{font-size:1.1rem;font-weight:700;margin-bottom:16px}
 .modal label{display:block;font-size:.82rem;color:var(--muted);margin-bottom:6px;margin-top:14px}
-.modal input{width:100%;padding:10px 14px;background:var(--bg);border:1px solid var(--border);
-  border-radius:8px;color:var(--text);font-size:.9rem;outline:none}
-.modal input:focus{border-color:var(--accent)}
-.modal-actions{display:flex;gap:10px;margin-top:20px}
+.modal input,.modal select{width:100%;padding:10px 14px;background:var(--bg);border:1px solid var(--border);
+  border-radius:8px;color:var(--text);font-size:.9rem;outline:none;font-family:inherit}
+.modal input:focus,.modal select:focus{border-color:var(--accent)}
+.modal-actions{display:flex;gap:10px;margin-top:24px}
 .modal-actions button{flex:1;padding:11px;border-radius:10px;border:none;cursor:pointer;font-weight:600}
 .btn-confirm{background:var(--success);color:#fff}
 .btn-cancel{background:var(--surface2);color:var(--text)}
@@ -158,6 +158,7 @@ tr:hover td{background:var(--surface2)}
   <nav class="nav">
     <div class="nav-item active" onclick="showPage('dashboard')"><i class="fa-solid fa-gauge-high"></i> Главная</div>
     <div class="nav-item" onclick="showPage('clinics')"><i class="fa-solid fa-hospital"></i> Клиники</div>
+    <div class="nav-item" onclick="showPage('payments')"><i class="fa-solid fa-credit-card"></i> Платежи ($300/мес) <span id="paymentCountBadge" style="background:var(--success);color:#fff;border-radius:20px;padding:1px 8px;font-size:.72rem;font-weight:700;margin-left:auto;display:none"></span></div>
     <div class="nav-item" onclick="showPage('applications')"><i class="fa-solid fa-file-circle-check"></i> Заявки <span id="pendingBadge" style="background:var(--warning);color:#000;border-radius:20px;padding:1px 8px;font-size:.72rem;font-weight:700;margin-left:auto"></span></div>
     <div class="nav-item" onclick="window.location.href='/'"><i class="fa-solid fa-arrow-left"></i> На сайт</div>
   </nav>
@@ -177,15 +178,23 @@ tr:hover td{background:var(--surface2)}
     <div class="page-title">Панель управления <span>SuperAdmin</span></div>
     <div class="stats-grid">
       <div class="stat-card">
-        <div class="stat-icon" style="background:rgba(59,130,246,.15);color:var(--accent)"><i class="fa-solid fa-hospital"></i></div>
+        <div class="stat-icon" style="background:rgba(16,185,129,.15);color:var(--success)"><i class="fa-solid fa-sack-dollar"></i></div>
+        <div><div class="stat-val" id="s-revenue">$0</div><div class="stat-label">Общая выручка ($)</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(59,130,246,.15);color:var(--accent)"><i class="fa-solid fa-coins"></i></div>
+        <div><div class="stat-val" id="s-mrr">$0</div><div class="stat-label">Ежемесячный MRR ($300/кл.)</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(6,182,212,.15);color:var(--accent2)"><i class="fa-solid fa-hospital"></i></div>
         <div><div class="stat-val" id="s-clinics">—</div><div class="stat-label">Активных клиник</div></div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon" style="background:rgba(6,182,212,.15);color:var(--accent2)"><i class="fa-solid fa-heart-pulse"></i></div>
+        <div class="stat-icon" style="background:rgba(168,85,247,.15);color:#a855f7"><i class="fa-solid fa-heart-pulse"></i></div>
         <div><div class="stat-val" id="s-scans">—</div><div class="stat-label">Всего анализов</div></div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon" style="background:rgba(16,185,129,.15);color:var(--success)"><i class="fa-solid fa-hand-holding-heart"></i></div>
+        <div class="stat-icon" style="background:rgba(239,68,68,.15);color:var(--danger)"><i class="fa-solid fa-hand-holding-heart"></i></div>
         <div><div class="stat-val" id="s-lives">—</div><div class="stat-label">Спасённых жизней</div></div>
       </div>
       <div class="stat-card">
@@ -209,6 +218,51 @@ tr:hover td{background:var(--surface2)}
       <div class="card-header"><h3 id="clinicCount">Все клиники</h3></div>
       <table><thead><tr><th>#</th><th>Название</th><th>ИНН</th><th>Статус</th><th>Оплата</th><th>Лимит</th><th>Анализов</th><th>Врачей</th><th>Действия</th></tr></thead>
       <tbody id="clinicsTbody"><tr><td colspan="9" class="empty"><i class="fa-solid fa-spinner fa-spin"></i></td></tr></tbody></table>
+    </div>
+  </div>
+
+  <!-- Payments page ($300/oy) -->
+  <div class="page" id="page-payments">
+    <div class="page-title">Платежи и подписки <span>($300/мес)</span></div>
+    
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(16,185,129,.15);color:var(--success)"><i class="fa-solid fa-money-bill-wave"></i></div>
+        <div><div class="stat-val" id="payTotalRevenue">$0</div><div class="stat-label">Всего поступило оплат</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(59,130,246,.15);color:var(--accent)"><i class="fa-solid fa-calendar-check"></i></div>
+        <div><div class="stat-val" id="payMRR">$0</div><div class="stat-label">Текущий MRR ($300/кл.)</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(6,182,212,.15);color:var(--accent2)"><i class="fa-solid fa-hospital-user"></i></div>
+        <div><div class="stat-val" id="payActiveClinics">0</div><div class="stat-label">Активных платящих клиник</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3><i class="fa-solid fa-receipt"></i> История оплат от всех клиник</h3>
+        <button class="action-btn btn-approve" onclick="openAddPaymentModal()"><i class="fa-solid fa-plus"></i> Подтвердить новый платёж ($300)</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Дата</th>
+            <th>Клиника</th>
+            <th>ИНН</th>
+            <th>Плательщик / Владелец</th>
+            <th>Телефон</th>
+            <th>Сумма</th>
+            <th>Способ оплаты</th>
+            <th>Статус</th>
+          </tr>
+        </thead>
+        <tbody id="paymentsTbody">
+          <tr><td colspan="9" class="empty"><i class="fa-solid fa-spinner fa-spin"></i> Загрузка...</td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 
@@ -242,6 +296,36 @@ tr:hover td{background:var(--surface2)}
   </div>
 </div>
 
+<!-- Add Payment Modal ($300) -->
+<div class="modal-bg" id="paymentModal">
+  <div class="modal">
+    <h3>💳 Принять / Подтвердить платёж</h3>
+    <p style="color:var(--muted);font-size:.85rem">Зафиксировать ежемесячный платёж $300 от клиники в системе.</p>
+    
+    <label>Клиника *</label>
+    <select id="payClinicSelect"></select>
+
+    <label>Сумма ($ USD) *</label>
+    <input type="number" id="payAmount" value="300" min="1">
+
+    <label>Способ оплаты *</label>
+    <select id="payMethod">
+      <option value="Bank Transfer">Банковский перевод (Расчётный счёт)</option>
+      <option value="Payme / Click">Payme / Click</option>
+      <option value="Корпоративная карта">Корпоративная карта</option>
+      <option value="Наличные / Другое">Наличные / Другое</option>
+    </select>
+
+    <label>Назначение платежа</label>
+    <input type="text" id="payDesc" value="MedScan Cardio ежемесячная подписка ($300)">
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closePaymentModal()">Отмена</button>
+      <button class="btn-confirm" onclick="confirmPaymentSubmit()">Подтвердить ($300)</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
@@ -250,6 +334,7 @@ const API = '';
 let token = localStorage.getItem('sa_token') || '';
 let pendingAppId = null;
 let currentStats = null;
+let currentPayments = null;
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 async function doLogin() {
@@ -280,13 +365,13 @@ function showApp() {
   document.getElementById('sidebar').style.display = 'flex';
   document.getElementById('mainContent').style.display = 'block';
   loadStats();
+  loadPayments();
   loadApps('pending', null);
 }
 
 // Check existing token on load
 window.addEventListener('load', () => {
   if (token) {
-    // Verify token by loading stats
     fetch(API + '/api/superadmin/stats', {headers:{Authorization:'Bearer '+token}})
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(d => { currentStats = d; showApp(); applyStats(d); })
@@ -298,10 +383,12 @@ window.addEventListener('load', () => {
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('page-' + id).classList.add('active');
-  event.currentTarget && event.currentTarget.classList.add('active');
-  if (id === 'dashboard') loadStats();
+  const pageEl = document.getElementById('page-' + id);
+  if (pageEl) pageEl.classList.add('active');
+  if (event && event.currentTarget) event.currentTarget.classList.add('active');
+  if (id === 'dashboard') { loadStats(); loadPayments(); }
   if (id === 'clinics') renderClinics();
+  if (id === 'payments') loadPayments();
   if (id === 'applications') loadApps('pending', document.querySelector('.tab'));
 }
 
@@ -321,7 +408,7 @@ function applyStats(d) {
   document.getElementById('s-lives').textContent   = d.lives_saved;
   document.getElementById('s-pending').textContent = d.pending_applications;
   const pb = document.getElementById('pendingBadge');
-  pb.textContent = d.pending_applications > 0 ? d.pending_applications : '';
+  if (pb) pb.textContent = d.pending_applications > 0 ? d.pending_applications : '';
 
   // Dashboard table (last 5)
   const tbody = document.getElementById('dashClinicsTbody');
@@ -337,6 +424,109 @@ function applyStats(d) {
     </tr>`).join('');
 }
 
+// ── Payments Management ($300/мес) ─────────────────────────────────────────────
+async function loadPayments() {
+  const tbody = document.getElementById('paymentsTbody');
+  try {
+    const r = await fetch(API + '/api/superadmin/payments', {headers:{Authorization:'Bearer '+token}});
+    const d = await r.json();
+    if (!r.ok) return;
+    currentPayments = d;
+    
+    // Update summary counters
+    document.getElementById('s-revenue').textContent = '$' + (d.total_revenue || 0).toLocaleString();
+    document.getElementById('s-mrr').textContent = '$' + (d.mrr || 0).toLocaleString();
+    document.getElementById('payTotalRevenue').textContent = '$' + (d.total_revenue || 0).toLocaleString();
+    document.getElementById('payMRR').textContent = '$' + (d.mrr || 0).toLocaleString();
+    document.getElementById('payActiveClinics').textContent = d.active_clinics || 0;
+
+    const badge = document.getElementById('paymentCountBadge');
+    if (badge && d.payments && d.payments.length) {
+      badge.textContent = d.payments.length;
+      badge.style.display = 'inline-block';
+    }
+
+    if (!tbody) return;
+    const payments = d.payments || [];
+    if (!payments.length) {
+      tbody.innerHTML = '<tr><td colspan="9" class="empty"><i class="fa-solid fa-receipt"></i> Пока нет платежей</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = payments.map(p => `
+      <tr>
+        <td>#${p.id}</td>
+        <td style="font-size:.82rem">${p.paid_at || '—'}</td>
+        <td><b>${p.clinic_name}</b></td>
+        <td style="font-family:monospace;font-size:.8rem">${p.inn || '—'}</td>
+        <td>${p.payer_name}</td>
+        <td>${p.payer_phone}</td>
+        <td><b style="color:var(--success)">$${p.amount}</b> ${p.currency}</td>
+        <td><span class="badge badge-active">${p.payment_method}</span></td>
+        <td><span class="badge badge-${p.status==='paid'?'active':'pending'}">${p.status==='paid'?'Оплачено':'Ожидание'}</span></td>
+      </tr>
+    `).join('');
+  } catch(e) {
+    console.error(e);
+    if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="empty">Ошибка загрузки платежей</td></tr>';
+  }
+}
+
+function openAddPaymentModal() {
+  const select = document.getElementById('payClinicSelect');
+  select.innerHTML = '';
+  const clinics = (currentStats && currentStats.clinics) ? currentStats.clinics : [];
+  if (!clinics.length) {
+    select.innerHTML = '<option value="">Сначала загрузите клиники</option>';
+  } else {
+    clinics.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = `${c.name} (ИНН: ${c.inn || '—'})`;
+      select.appendChild(opt);
+    });
+  }
+  document.getElementById('paymentModal').style.display = 'flex';
+}
+
+function closePaymentModal() {
+  document.getElementById('paymentModal').style.display = 'none';
+}
+
+async function confirmPaymentSubmit() {
+  const clinicId = document.getElementById('payClinicSelect').value;
+  const amount = document.getElementById('payAmount').value;
+  const method = document.getElementById('payMethod').value;
+  const desc = document.getElementById('payDesc').value;
+
+  if (!clinicId) {
+    alert('Пожалуйста, выберите клинику');
+    return;
+  }
+
+  const fd = new FormData();
+  fd.append('clinic_id', clinicId);
+  fd.append('amount', amount);
+  fd.append('payment_method', method);
+  fd.append('description', desc);
+
+  try {
+    const r = await fetch(API + '/api/superadmin/payments', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token },
+      body: fd
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || 'Ошибка при подтверждении платежа');
+    showToast(d.message, 'ok');
+    closePaymentModal();
+    loadPayments();
+    loadStats();
+  } catch(e) {
+    showToast(e.message, 'fail');
+  }
+}
+
 // ── Clinics table ─────────────────────────────────────────────────────────────
 function renderClinics() {
   if (!currentStats) { loadStats().then(() => renderClinics()); return; }
@@ -350,7 +540,7 @@ function renderClinics() {
       <td><b>${c.name}</b></td>
       <td style="font-family:monospace;font-size:.8rem">${c.inn || '—'}</td>
       <td><span class="badge badge-${c.status==='active'?'active':'blocked'}">${c.status==='active'?'Активна':'Заблок.'}</span></td>
-      <td><span class="badge badge-${c.payment_status==='paid'?'active':'blocked'}">${c.payment_status==='paid'?'Оплачено':'Долг'}</span></td>
+      <td><span class="badge badge-${c.payment_status==='paid'?'active':'blocked'}">${c.payment_status==='paid'?'$300 Оплачено':'Долг'}</span></td>
       <td>${c.scan_limit}</td>
       <td>${c.scans_done}</td>
       <td>${c.doctors_count}</td>

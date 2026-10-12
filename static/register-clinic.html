@@ -3,184 +3,376 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Klinika ro'yxatdan o'tkazish – MedScan Cardio</title>
+<title>Biznesni ulash ($300/oy) – MedScan Cardio AI</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--bg:#0a0e1a;--surface:#111827;--border:#1e2d45;--accent:#3b82f6;--accent2:#06b6d4;--success:#10b981;--danger:#ef4444;--text:#e2e8f0;--muted:#64748b}
+:root{
+  --bg:#0a0e1a;--surface:#111827;--surface2:#1a2235;--border:#1e2d45;
+  --accent:#3b82f6;--accent2:#06b6d4;--success:#10b981;--warning:#f59e0b;
+  --danger:#ef4444;--text:#e2e8f0;--muted:#94a3b8;
+}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
 
-/* Hero */
-.hero{background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);padding:48px 24px;text-align:center;border-bottom:1px solid var(--border)}
-.hero-logo{font-size:3rem;margin-bottom:12px}
-.hero h1{font-size:2rem;font-weight:800;margin-bottom:8px;background:linear-gradient(135deg,#60a5fa,#22d3ee);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.hero p{color:var(--muted);max-width:500px;margin:0 auto;line-height:1.6}
+/* Header / Hero */
+.header{
+  background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);
+  padding:40px 20px 30px;text-align:center;border-bottom:1px solid var(--border);position:relative;
+}
+.header-top{display:flex;align-items:center;justify-content:space-between;max-width:960px;margin:0 auto 24px}
+.logo-brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--text)}
+.logo-icon{font-size:2rem;color:#ef4444}
+.logo-title{font-size:1.3rem;font-weight:800;background:linear-gradient(135deg,#60a5fa,#22d3ee);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.back-link{color:var(--muted);text-decoration:none;font-size:.88rem;display:flex;align-items:center;gap:6px;padding:8px 14px;border:1px solid var(--border);border-radius:8px;transition:.2s}
+.back-link:hover{border-color:var(--accent);color:var(--accent)}
 
-/* Benefits */
-.benefits{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;padding:32px 24px;max-width:900px;margin:0 auto}
-.benefit{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;flex:1;min-width:180px;text-align:center}
-.benefit i{font-size:1.5rem;margin-bottom:10px;display:block}
-.benefit h4{font-size:.9rem;font-weight:700;margin-bottom:4px}
-.benefit p{font-size:.8rem;color:var(--muted)}
+.header h1{font-size:2.2rem;font-weight:800;margin-bottom:12px;background:linear-gradient(135deg,#ffffff,#93c5fd);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header p{color:var(--muted);max-width:640px;margin:0 auto;line-height:1.6;font-size:1.02rem}
 
-/* Form */
-.form-wrap{max-width:620px;margin:0 auto;padding:0 24px 60px}
-.form-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:36px}
-.form-card h2{font-size:1.3rem;font-weight:800;margin-bottom:6px}
-.form-card>p{color:var(--muted);font-size:.88rem;margin-bottom:28px}
-.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-@media(max-width:520px){.form-row{grid-template-columns:1fr}}
+/* Tariff Banner */
+.tariff-banner{
+  max-width:820px;margin:24px auto 0;
+  background:linear-gradient(135deg,rgba(59,130,246,.15),rgba(16,185,129,.15));
+  border:1px solid rgba(59,130,246,.4);border-radius:18px;padding:24px 28px;
+  display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;
+}
+.tariff-info h3{font-size:1.25rem;font-weight:800;color:#fff;display:flex;align-items:center;gap:10px}
+.tariff-info p{color:var(--muted);font-size:.9rem;margin-top:6px;line-height:1.4}
+.tariff-price{text-align:right}
+.tariff-price .price{font-size:2.4rem;font-weight:900;color:var(--success)}
+.tariff-price .period{font-size:.85rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+
+/* Main Container */
+.container{max-width:820px;margin:32px auto 60px;padding:0 20px;width:100%}
+.form-card{background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:40px;box-shadow:0 20px 40px rgba(0,0,0,.4)}
+
+.section-title{
+  display:flex;align-items:center;gap:12px;font-size:1.15rem;font-weight:700;
+  color:#fff;margin:28px 0 16px;padding-bottom:10px;border-bottom:1px solid var(--border);
+}
+.section-title:first-of-type{margin-top:0}
+.section-title i{color:var(--accent);font-size:1.1rem}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px}
+@media(max-width:680px){
+  .grid-2,.grid-3{grid-template-columns:1fr}
+  .form-card{padding:24px 18px}
+  .tariff-banner{text-align:center;justify-content:center}
+  .tariff-price{text-align:center}
+}
+
 .field{margin-bottom:18px}
-.field label{display:block;font-size:.82rem;font-weight:600;color:var(--muted);margin-bottom:7px}
-.field input,.field textarea,.field select{
-  width:100%;padding:12px 16px;background:var(--bg);border:1px solid var(--border);
-  border-radius:10px;color:var(--text);font-size:.9rem;outline:none;font-family:inherit;resize:vertical
+.field label{display:block;font-size:.85rem;font-weight:600;color:var(--muted);margin-bottom:8px}
+.field input,.field select,.field textarea{
+  width:100%;padding:13px 16px;background:var(--surface2);border:1px solid var(--border);
+  border-radius:12px;color:var(--text);font-size:.95rem;outline:none;font-family:inherit;transition:.2s
 }
-.field input:focus,.field textarea:focus{border-color:var(--accent)}
-.field textarea{min-height:80px}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.2)}
+.field small{display:block;font-size:.76rem;color:var(--muted);margin-top:5px}
+
+.payment-summary{
+  background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);
+  border-radius:16px;padding:20px;margin:24px 0;display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap;
+}
+.payment-summary-title{font-weight:700;font-size:1rem;color:var(--success)}
+.payment-summary-desc{font-size:.85rem;color:var(--muted);margin-top:4px}
+.payment-amount{font-size:1.8rem;font-weight:800;color:#fff}
+
 .submit-btn{
-  width:100%;padding:15px;background:var(--accent);color:#fff;border:none;border-radius:12px;
-  font-size:1rem;font-weight:700;cursor:pointer;transition:.2s;margin-top:4px
+  width:100%;padding:16px;background:linear-gradient(135deg,var(--accent),#2563eb);
+  color:#fff;border:none;border-radius:14px;font-size:1.05rem;font-weight:700;
+  cursor:pointer;transition:.2s;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 10px 20px rgba(37,99,235,.3);
 }
-.submit-btn:hover{background:#2563eb;transform:translateY(-1px)}
-.submit-btn:disabled{background:var(--muted);cursor:not-allowed;transform:none}
-.note{font-size:.78rem;color:var(--muted);margin-top:10px;text-align:center;line-height:1.5}
+.submit-btn:hover{background:linear-gradient(135deg,#2563eb,#1d4ed8);transform:translateY(-1px)}
+.submit-btn:disabled{opacity:.6;cursor:not-allowed;transform:none}
 
-/* Success state */
-.success-card{background:var(--surface);border:1px solid rgba(16,185,129,.4);border-radius:20px;
-  padding:48px 32px;text-align:center;display:none}
-.success-card .check{font-size:3rem;margin-bottom:16px}
-.success-card h3{font-size:1.4rem;font-weight:800;color:var(--success);margin-bottom:10px}
-.success-card p{color:var(--muted);max-width:360px;margin:0 auto;line-height:1.6}
-.back-btn{margin-top:24px;padding:12px 28px;background:var(--surface);border:1px solid var(--border);
-  border-radius:10px;color:var(--text);font-weight:600;cursor:pointer;text-decoration:none;
-  display:inline-block;font-size:.9rem;transition:.2s}
-.back-btn:hover{border-color:var(--accent);color:var(--accent)}
+.err-box{
+  background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);border-radius:12px;
+  padding:14px 18px;color:#fca5a5;font-size:.9rem;margin-bottom:20px;display:none;align-items:center;gap:10px;
+}
 
-.err-box{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:10px;
-  padding:12px 16px;color:var(--danger);font-size:.85rem;margin-top:12px;display:none}
+/* Success Card */
+.success-card{
+  display:none;background:var(--surface);border:1px solid rgba(16,185,129,.4);border-radius:24px;
+  padding:48px 36px;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,.5);
+}
+.success-icon{font-size:3.5rem;color:var(--success);margin-bottom:16px}
+.success-card h2{font-size:1.8rem;font-weight:800;margin-bottom:12px;color:#fff}
+.success-card p{color:var(--muted);font-size:1rem;line-height:1.6;max-width:540px;margin:0 auto 24px}
+.success-details{
+  background:var(--surface2);border:1px solid var(--border);border-radius:14px;
+  padding:20px;max-width:480px;margin:0 auto 28px;text-align:left;font-size:.9rem;
+}
+.success-details-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.success-details-row:last-child{border-bottom:none}
+.btn-dashboard{
+  display:inline-flex;align-items:center;gap:10px;padding:14px 32px;
+  background:var(--success);color:#fff;border-radius:12px;font-weight:700;
+  text-decoration:none;font-size:1rem;transition:.2s;box-shadow:0 10px 20px rgba(16,185,129,.3);
+}
+.btn-dashboard:hover{background:#059669;transform:translateY(-1px)}
 </style>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body>
 
-<div class="hero">
-  <div class="hero-logo">🫀</div>
-  <h1>MedScan Cardio'ga ulaning</h1>
-  <p>Sun'iy intellekt yordamida EKG diagnostikasini klinikangizga ulang. Ariza 24 soat ichida ko'rib chiqiladi.</p>
-</div>
+<header class="header">
+  <div class="header-top">
+    <a href="/" class="logo-brand">
+      <i class="fa-solid fa-heart-pulse logo-icon"></i>
+      <span class="logo-title">MEDSCAN CARDIO AI</span>
+    </a>
+    <a href="/" class="back-link"><i class="fa-solid fa-arrow-left"></i> Asosiy sahifaga qaytish</a>
+  </div>
 
-<div class="benefits">
-  <div class="benefit"><i class="fa-solid fa-bolt" style="color:#f59e0b"></i><h4>Tezkor tahlil</h4><p>EKG natijasi 30 soniyada</p></div>
-  <div class="benefit"><i class="fa-solid fa-shield-halved" style="color:#3b82f6"></i><h4>Ma'lumot himoyasi</h4><p>Clinic ID izolyatsiyasi</p></div>
-  <div class="benefit"><i class="fa-solid fa-chart-line" style="color:#10b981"></i><h4>Statistika</h4><p>Real-time monitoring</p></div>
-  <div class="benefit"><i class="fa-solid fa-headset" style="color:#06b6d4"></i><h4>Qo'llab-quvvatlash</h4><p>24/7 texnik yordam</p></div>
-</div>
+  <h1>Klinika va Biznesni Ro'yxatdan O'tkazish</h1>
+  <p>Tibbiy markazingiz yoki xususiy poliklinikangizni MedScan AI platformasiga ulang. Barcha shifokorlaringiz uchun sun'iy intellekt EKG tahlillari va qulay monitoring.</p>
 
-<div class="form-wrap">
-  <!-- Application form -->
+  <div class="tariff-banner">
+    <div class="tariff-info">
+      <h3><i class="fa-solid fa-shield-halved" style="color:var(--accent2)"></i> Professional Biznes Paketi</h3>
+      <p>Cheksiz EKG tahlillar • Shifokorlar jamoasini boshqarish • Infarkt erta ogohlantiruv • Tahlillar arxivi</p>
+    </div>
+    <div class="tariff-price">
+      <div class="price">$300</div>
+      <div class="period">Oyiga abonent to'lovi</div>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+  <!-- Form Card -->
   <div class="form-card" id="formCard">
-    <h2>Klinika arizasi</h2>
-    <p>Barcha maydonlarni to'ldiring. Ariza ko'rib chiqilgandan so'ng siz bilan bog'lanamiz.</p>
+    <div class="err-box" id="errBox"><i class="fa-solid fa-circle-exclamation"></i><span id="errText"></span></div>
 
-    <div class="form-row">
-      <div class="field">
-        <label><i class="fa-solid fa-hospital"></i> Klinika nomi *</label>
-        <input type="text" id="clinic_name" placeholder="Masalan: Shifo Medical Center" required>
+    <form id="businessRegisterForm" onsubmit="handleBusinessSubmit(event)">
+      <!-- 1. KLINIKA MA'LUMOTLARI -->
+      <div class="section-title">
+        <i class="fa-solid fa-hospital"></i> 1. Tibbiyot muassasasi / Biznes ma'lumotlari
       </div>
-      <div class="field">
-        <label><i class="fa-solid fa-hashtag"></i> INN (ИНН) *</label>
-        <input type="text" id="inn" placeholder="123456789" required>
-      </div>
-    </div>
 
-    <div class="form-row">
-      <div class="field">
-        <label><i class="fa-solid fa-user-tie"></i> Mas'ul shaxs F.I.O</label>
-        <input type="text" id="contact_person" placeholder="Karimov Jasur Aliyevich">
+      <div class="grid-2">
+        <div class="field">
+          <label><i class="fa-solid fa-clinic-medical"></i> Medpunkt / Klinika nomi *</label>
+          <input type="text" id="clinic_name" placeholder="Masalan: 'Shifo Kardiologiya Markazi'" required>
+          <small>Yuridik yoki brend nomi</small>
+        </div>
+        <div class="field">
+          <label><i class="fa-solid fa-id-card"></i> Soliq to'lovchining INN (ИНН) raqami *</label>
+          <input type="text" id="inn" placeholder="123456789" maxlength="12" required>
+          <small>Klinika yoki korxona INN raqami (kamida 7-9 raqam)</small>
+        </div>
       </div>
-      <div class="field">
-        <label><i class="fa-solid fa-phone"></i> Telefon raqam *</label>
-        <input type="tel" id="contact_phone" placeholder="+998 90 123 45 67" required>
-      </div>
-    </div>
 
-    <div class="form-row">
-      <div class="field">
-        <label><i class="fa-solid fa-envelope"></i> Email</label>
-        <input type="email" id="contact_email" placeholder="clinic@example.com">
+      <div class="grid-2">
+        <div class="field">
+          <label><i class="fa-solid fa-map-location-dot"></i> Viloyat / Shahar *</label>
+          <select id="region" required>
+            <option value="Toshkent shahri">Toshkent shahri</option>
+            <option value="Toshkent viloyati" selected>Toshkent viloyati</option>
+            <option value="Andijon viloyati">Andijon viloyati</option>
+            <option value="Buxoro viloyati">Buxoro viloyati</option>
+            <option value="Farg'ona viloyati">Farg'ona viloyati</option>
+            <option value="Jizzax viloyati">Jizzax viloyati</option>
+            <option value="Namangan viloyati">Namangan viloyati</option>
+            <option value="Navoiy viloyati">Navoiy viloyati</option>
+            <option value="Qashqadaryo viloyati">Qashqadaryo viloyati</option>
+            <option value="Qoraqalpog'iston Respublikasi">Qoraqalpog'iston Respublikasi</option>
+            <option value="Samarqand viloyati">Samarqand viloyati</option>
+            <option value="Sirdaryo viloyati">Sirdaryo viloyati</option>
+            <option value="Surxondaryo viloyati">Surxondaryo viloyati</option>
+            <option value="Xorazm viloyati">Xorazm viloyati</option>
+          </select>
+        </div>
+        <div class="field">
+          <label><i class="fa-solid fa-location-dot"></i> Ko'cha va manzil (Tuman, ko'cha, bino) *</label>
+          <input type="text" id="address" placeholder="Masalan: Yunusobod tumani, Amir Temur ko'chasi, 45-uy" required>
+          <small>Medpunkt joylashgan aniq ko'cha va bino</small>
+        </div>
       </div>
-      <div class="field">
-        <label><i class="fa-solid fa-location-dot"></i> Manzil</label>
-        <input type="text" id="address" placeholder="Toshkent sh., Yunusobod tumani">
+
+      <!-- 2. RAHBAR / EGASI MA'LUMOTLARI -->
+      <div class="section-title">
+        <i class="fa-solid fa-user-tie"></i> 2. Klinika rahbari (Egasi) ma'lumotlari
       </div>
-    </div>
 
-    <div class="field">
-      <label><i class="fa-solid fa-comment"></i> Qo'shimcha izoh</label>
-      <textarea id="comment" placeholder="Klinikangiz haqida qo'shimcha ma'lumot..."></textarea>
-    </div>
+      <div class="grid-3">
+        <div class="field">
+          <label><i class="fa-solid fa-user"></i> Familiya *</label>
+          <input type="text" id="last_name" placeholder="Karimov" required>
+        </div>
+        <div class="field">
+          <label><i class="fa-solid fa-user"></i> Ism *</label>
+          <input type="text" id="first_name" placeholder="Jasur" required>
+        </div>
+        <div class="field">
+          <label><i class="fa-solid fa-user"></i> Otasining ismi (Отчество)</label>
+          <input type="text" id="middle_name" placeholder="Aliyevich">
+        </div>
+      </div>
 
-    <button class="submit-btn" id="submitBtn" onclick="submitForm()">
-      <i class="fa-solid fa-paper-plane"></i> Ariza yuborish
-    </button>
-    <div class="err-box" id="errBox"></div>
-    <p class="note">* belgili maydonlar majburiy. Ariza yuborilgandan so'ng SuperAdmin 24 soat ichida ko'rib chiqadi va klinikangizni tizimga qo'shadi.</p>
+      <div class="grid-3">
+        <div class="field">
+          <label><i class="fa-solid fa-calendar"></i> Tug'ilgan yili *</label>
+          <input type="number" id="birth_year" min="1940" max="2010" value="1985" required>
+          <small>Yil (masalan: 1985)</small>
+        </div>
+        <div class="field">
+          <label><i class="fa-solid fa-phone"></i> Telefon raqami *</label>
+          <input type="tel" id="phone" placeholder="+998901234567" required>
+          <small>Tizimga kirish logini bo'ladi</small>
+        </div>
+        <div class="field">
+          <label><i class="fa-solid fa-lock"></i> Kirish paroli *</label>
+          <input type="password" id="passcode" placeholder="••••••••" minlength="4" required>
+          <small>Klinika paneliga kirish kaliti</small>
+        </div>
+      </div>
+
+      <!-- 3. TO'LOV VA TARIF -->
+      <div class="section-title">
+        <i class="fa-solid fa-credit-card"></i> 3. Oylik to'lov va obuna ($300 / oy)
+      </div>
+
+      <div class="payment-summary">
+        <div>
+          <div class="payment-summary-title"><i class="fa-solid fa-check-circle"></i> Oylik litsenziya to'lovi</div>
+          <div class="payment-summary-desc">Platformadan foydalanish, AI model serveri va cheksiz tahlillar uchun</div>
+        </div>
+        <div class="payment-amount">$300 <span style="font-size:.9rem;color:var(--muted)">USD/oy</span></div>
+      </div>
+
+      <div class="field">
+        <label><i class="fa-solid fa-wallet"></i> To'lov usuli *</label>
+        <select id="payment_method" required>
+          <option value="Bank o'tkazmasi (Hisob-kitob varag'i)" selected>Bank o'tkazmasi (Hisob-kitob varag'i / Расчётный счёт)</option>
+          <option value="Korporativ karta (Uzcard / Humo)">Korporativ karta (Uzcard / Humo)</option>
+          <option value="Payme / Click Business">Payme / Click Business</option>
+          <option value="Xalqaro karta (Visa / Mastercard)">Xalqaro karta (Visa / Mastercard)</option>
+        </select>
+      </div>
+
+      <button type="submit" class="submit-btn" id="submitBtn">
+        <i class="fa-solid fa-rocket"></i> Biznesni ro'yxatdan o'tkazish va hisobni faollashtirish ($300)
+      </button>
+
+      <p style="text-align:center;font-size:.82rem;color:var(--muted);margin-top:16px">
+        <i class="fa-solid fa-lock"></i> Barcha to'lovlar xavfsiz himoyalangan va har bir to'lov SuperAdmin hisobida qayd etiladi.
+      </p>
+    </form>
   </div>
 
-  <!-- Success state -->
+  <!-- Success Card -->
   <div class="success-card" id="successCard">
-    <div class="check">✅</div>
-    <h3>Ariza qabul qilindi!</h3>
-    <p>Arizangiz muvaffaqiyatli yuborildi. Administratorimiz tez orada siz bilan bog'lanadi va klinikangizni tizimga qo'shadi.</p>
-    <a href="/" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Bosh sahifaga qaytish</a>
+    <div class="success-icon"><i class="fa-solid fa-circle-check"></i></div>
+    <h2>Klinika muvaffaqiyatli ro'yxatdan o'tdi!</h2>
+    <p>Klinikangiz uchun $300 oylik obuna faollashtirildi. Siz klinika egasi (<strong style="color:#fff">clinicadmin</strong>) sifatida tizimga ulandingiz. Endi shifokorlaringizni qo'shishingiz va EKG tahlillarini boshlashingiz mumkin.</p>
+
+    <div class="success-details" id="successDetails">
+      <!-- Injected by JS -->
+    </div>
+
+    <a href="/" class="btn-dashboard">
+      <i class="fa-solid fa-chart-pie"></i> Klinika boshqaruv paneliga o'tish
+    </a>
   </div>
-</div>
+</main>
 
 <script>
-async function submitForm() {
+async function handleBusinessSubmit(e) {
+  e.preventDefault();
   const btn = document.getElementById('submitBtn');
   const errBox = document.getElementById('errBox');
+  const errText = document.getElementById('errText');
   errBox.style.display = 'none';
 
-  const clinic_name   = document.getElementById('clinic_name').value.trim();
-  const inn           = document.getElementById('inn').value.trim();
-  const contact_phone = document.getElementById('contact_phone').value.trim();
+  const clinic_name = document.getElementById('clinic_name').value.trim();
+  const inn = document.getElementById('inn').value.trim();
+  const region = document.getElementById('region').value;
+  const address = document.getElementById('address').value.trim();
+  const last_name = document.getElementById('last_name').value.trim();
+  const first_name = document.getElementById('first_name').value.trim();
+  const middle_name = document.getElementById('middle_name').value.trim();
+  const birth_year = document.getElementById('birth_year').value.trim();
+  const phone = document.getElementById('phone').value.trim();
+  const passcode = document.getElementById('passcode').value.trim();
+  const payment_method = document.getElementById('payment_method').value;
 
-  if (!clinic_name || !inn || !contact_phone) {
-    errBox.textContent = 'Iltimos, majburiy maydonlarni (*) to\'ldiring.';
-    errBox.style.display = 'block'; return;
-  }
-  if (inn.length < 9) {
-    errBox.textContent = 'INN kamida 9 raqamdan iborat bo\'lishi kerak.';
-    errBox.style.display = 'block'; return;
+  if (inn.length < 7) {
+    showError("INN raqami to'liq kiritilishi lozim (kamida 7-9 raqam)");
+    return;
   }
 
   btn.disabled = true;
-  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Yuborilmoqda...';
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Ro\'yxatdan o\'tkazilmoqda va to\'lov qayd etilmoqda...';
 
   const fd = new FormData();
-  fd.append('clinic_name',   clinic_name);
-  fd.append('inn',           inn);
-  fd.append('contact_person', document.getElementById('contact_person').value.trim());
-  fd.append('contact_phone', contact_phone);
-  fd.append('contact_email', document.getElementById('contact_email').value.trim());
-  fd.append('address',       document.getElementById('address').value.trim());
-  fd.append('comment',       document.getElementById('comment').value.trim());
+  fd.append('clinic_name', clinic_name);
+  fd.append('inn', inn);
+  fd.append('region', region);
+  fd.append('district', address);
+  fd.append('address', address);
+  fd.append('last_name', last_name);
+  fd.append('first_name', first_name);
+  fd.append('middle_name', middle_name);
+  fd.append('birth_year', birth_year);
+  fd.append('phone', phone);
+  fd.append('passcode', passcode);
+  fd.append('payment_method', payment_method);
 
   try {
-    const r = await fetch('/api/register-clinic', {method:'POST', body:fd});
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.detail || 'Xatolik yuz berdi');
+    const res = await fetch('/api/register-business', {
+      method: 'POST',
+      body: fd
+    });
+    const data = await res.json();
+    if (!res.ok || data.status !== 'success') {
+      throw new Error(data.detail || data.message || "Ro'yxatdan o'tishda xatolik yuz berdi");
+    }
+
+    // Save token and user details to localStorage for instant platform login
+    if (data.token) {
+      localStorage.setItem('cardio_token', data.token);
+      localStorage.setItem('auth_token', data.token);
+    }
+    if (data.user) {
+      localStorage.setItem('cardio_user', JSON.stringify(data.user));
+    }
+    if (data.clinic) {
+      localStorage.setItem('cardio_clinic', JSON.stringify(data.clinic));
+    }
+
+    // Render success details
+    const detailsHtml = `
+      <div class="success-details-row"><span>Klinika nomi:</span> <b>${data.clinic.name}</b></div>
+      <div class="success-details-row"><span>INN:</span> <b>${data.clinic.inn}</b></div>
+      <div class="success-details-row"><span>Klinika egasi:</span> <b>${data.user.last_name} ${data.user.first_name} ${data.user.middle_name || ''}</b></div>
+      <div class="success-details-row"><span>Tug'ilgan yili:</span> <b>${data.user.birth_year || birth_year}</b></div>
+      <div class="success-details-row"><span>Telefon:</span> <b>${data.user.phone}</b></div>
+      <div class="success-details-row"><span>Oylik obuna to'lovi:</span> <b style="color:var(--success)">$300.00 USD (Qabul qilindi)</b></div>
+      <div class="success-details-row"><span>To'lov usuli:</span> <b>${payment_method}</b></div>
+    `;
+    document.getElementById('successDetails').innerHTML = detailsHtml;
+
     document.getElementById('formCard').style.display = 'none';
     document.getElementById('successCard').style.display = 'block';
-  } catch(e) {
-    errBox.textContent = e.message;
-    errBox.style.display = 'block';
+    window.scrollTo({top: 0, behavior: 'smooth'});
+
+  } catch (err) {
+    showError(err.message);
     btn.disabled = false;
-    btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Ariza yuborish';
+    btn.innerHTML = '<i class="fa-solid fa-rocket"></i> Qaytadan urinish';
   }
+}
+
+function showError(msg) {
+  const errBox = document.getElementById('errBox');
+  const errText = document.getElementById('errText');
+  errText.textContent = msg;
+  errBox.style.display = 'flex';
+  errBox.scrollIntoView({behavior:'smooth', block:'center'});
 }
 </script>
 </body>
