@@ -1725,17 +1725,20 @@ function runEmergencyDispatchSimulation() {
 // PWA AND MOBILE UTILITY FUNCTIONS
 // ==========================================
 
-// 1. Service Worker registration
+// 1. Service Worker registration & cache cleanup
 function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw.js')
-                .then((reg) => {
-                    console.log('Service Worker successfully registered with scope: ', reg.scope);
-                })
-                .catch((err) => {
-                    console.error('Service Worker registration failed: ', err);
-                });
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+            for (let registration of registrations) {
+                registration.unregister();
+            }
+        });
+    }
+    if ('caches' in window) {
+        caches.keys().then(names => {
+            for (let name of names) {
+                caches.delete(name);
+            }
         });
     }
 }
